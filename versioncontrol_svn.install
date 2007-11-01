@@ -1,0 +1,89 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Subversion backend for Version Control API - Provides Subversion commit
+ * information and account management as a pluggable backend.
+ *
+ * Copyright 2006 by Karthik ("Zen", http://drupal.org/user/21209)
+ * Copyright 2006, 2007 by Gavin Mogan ("halkeye", http://drupal.org/user/56779)
+ * Copyright 2006, 2007 by Derek Wright ("dww", http://drupal.org/user/46549)
+ * Copyright 2007 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function versioncontrol_svn_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysqli':
+    case 'mysql':
+      db_query("CREATE TABLE {versioncontrol_svn_accounts} (
+        uid int unsigned NOT NULL default 0,
+        repo_id int unsigned NOT NULL default 0,
+        password varchar(64) NOT NULL default '',
+        PRIMARY KEY (uid, repo_id)
+      ) /*!40100 DEFAULT CHARACTER SET utf8 */");
+
+      db_query("CREATE TABLE {versioncontrol_svn_repositories} (
+        repo_id int unsigned NOT NULL default 0,
+        server_type tinyint NOT NULL default 0,
+        update_method tinyint unsigned NOT NULL default 0,
+        updated int unsigned NOT NULL default 0,
+        last_revision int unsigned NOT NULL default 0,
+        path_trunk varchar(128) NOT NULL default '/trunk',
+        path_branch varchar(128) NOT NULL default '/branches/%branch',
+        path_tag varchar(128) NOT NULL default '/tags/%branch/%tag',
+        PRIMARY KEY (repo_id)
+      ) /*!40100 DEFAULT CHARACTER SET utf8 */");
+
+      db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
+        commit_id int unsigned NOT NULL default 0,
+        item_id int unsigned NOT NULL default 0,
+        type tinyint NOT NULL default 0,
+        path varchar(255) NOT NULL default '',
+        revision varchar(32) NOT NULL default 0,
+        action varchar(64) NOT NULL default 0,
+        source_item_id int unsigned NOT NULL default 0,
+        PRIMARY KEY (commit_id, item_id),
+        KEY (path)
+      ) /*!40100 DEFAULT CHARACTER SET utf8 */");
+
+      break;
+
+    case 'pgsql':
+      db_query("CREATE TABLE {versioncontrol_svn_accounts} (
+        uid int NOT NULL default 0,
+        repo_id int NOT NULL default 0,
+        password varchar(64) NOT NULL default '',
+        PRIMARY KEY (uid, repo_id)
+      )");
+
+      db_query("CREATE TABLE {versioncontrol_svn_repositories} (
+        repo_id int NOT NULL default 0,
+        server_type smallint NOT NULL default 0,
+        update_method smallint NOT NULL default 0,
+        updated int NOT NULL default 0,
+        last_revision int NOT NULL default 0,
+        path_trunk varchar(128) NOT NULL default '/trunk',
+        path_branch varchar(128) NOT NULL default '/branches/%branch',
+        path_tag varchar(128) NOT NULL default '/tags/%branch/%tag',
+        PRIMARY KEY (repo_id)
+      )");
+
+      db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
+        commit_id int NOT NULL default 0,
+        item_id int NOT NULL default 0,
+        type smallint NOT NULL default 0,
+        path varchar(255) NOT NULL default '',
+        revision varchar(32) NOT NULL default 0,
+        action varchar(64) NOT NULL default 0,
+        source_item_id int NOT NULL default 0,
+        PRIMARY KEY (commit_id, item_id)
+      )");
+      db_query("CREATE INDEX {versioncontrol_svn_item_revisions}_directory_idx
+                ON {versioncontrol_svn_item_revisions} (directory)");
+
+      break;
+  }
+}
