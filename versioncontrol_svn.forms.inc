@@ -144,3 +144,128 @@ function versioncontrol_svn_versioncontrol_extract_repository_data($form_values)
     ),
   );
 }
+
+
+/**
+ * Add SVN specific elements to the edit/register user account form.
+ */
+function versioncontrol_svn_account_form_alter($form_id, &$form) {
+  $repository = $form['#repository'];
+  $uid = $form['uid']['#value'];
+  $account_creation = empty($form['original_username']['#value']);
+
+  $form['versioncontrol_svn'] = array(
+    '#type' => 'value',
+    '#value' => TRUE,
+  );
+
+  // Add a password field to the form.
+  if ($account_creation) {
+    $description = t('Choose a password to access the Subversion repository with.');
+  }
+  else { // editing the account
+    $description = t('To change the current Subversion password, enter the new password in both fields.');
+  }
+  $form['account']['account_password'] = array(
+    '#type' => 'password_confirm',
+    '#title' => t('Subversion password'),
+    '#description' => $description,
+    '#weight' => 10,
+  );
+
+  // Find out which (or if) serving method is currently assigned to the user.
+  $current_serving_method = 0;
+  if (!$account_creation) { // creating the account
+    $current_serving_method = db_result(db_query(
+      'SELECT serving_method FROM {versioncontrol_svn_accounts}
+       WHERE uid = %d', $uid
+    );
+  }
+  $form['original_serving_method'] = array(
+    '#type' => 'value',
+    '#value' => $current_serving_method,
+  );
+
+  if ($allowed_serving_methods > 1) {
+    $allowed_serving_methods = versioncontrol_svn_get_allowed_serving_methods($repository);
+    $form['account']['serving_method'] = array(
+      '#type' => 'radios',
+      '#title' => t('Repository access method'),
+      '#description' => t('Choose how you want to communicate with the Subversion server.'),
+      '#default_value' => $current_serving_method,
+      '#options' => array(
+        VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV => t('HTTP/WebDAV ("svn co https://...")'),
+        VERSIONCONTROL_SVN_SERVER_SVNSERVE => t('SVN protocol ("svn co svn://...")'),
+        VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH => t('SVN protocol over SSH ("svn co svn+ssh://...")'),
+      ),
+      '#required' => TRUE,
+      '#weight' => 12,
+    );
+  }
+  else {
+    // allowed_serving_methods only contains one element,
+    // so its database representation equals the serving method constant.
+    $form['serving_method'] = array(
+      '#type' => 'value',
+      '#value' => $repository['svn_specific']['allowed_serving_methods'],
+    );
+  }
+
+  $form['#validate']['versioncontrol_svn_account_form_validate'] = array();
+}
+
+/**
+ * Additional validation for the edit/register user account form.
+ */
+function versioncontrol_svn_account_form_validate($form_id, $form_values) {
+  if (empty($form_values['original_username'])) {
+    $account_creation = TRUE;
+  }
+  else if ($form_values['serving_method'] != $form_values['original_serving_method']) {
+    $serving_method_changed = TRUE;
+  }
+  $password_required = $account_creation || $serving_method_changed;
+
+  if (!$password_required && empty($form_values['account_password'])) {
+    return; // The (existing) user didn't change the password, and didn't need to.
+  }
+  else if (strlen($form_values['account_password']) < VERSIONCONTROL_SVN_MIN_PASSWORD_LENGTH) {
+    if ($serving_method_changed) {
+      form_set_error('account_password', t('When changing the repository access method, you need to resubmit your password as the authentication process is different.'));
+    }
+    else {
+      form_set_error('account_password', t('The SVN password you have chosen is too short (it must be at least !min characters long).', array('!min' => VERSIONCONTROL_SVN_MIN_PASSWORD_LENGTH)));
+    }
+  }
+}
+
+/**
+ * Implementation of hook_versioncontrol_extract_account_data():
+ * Extract SVN specific user account additions (say: the password)
+ * from the edit/register user account form's submitted values.
+ */
+function versioncontrol_svn_versioncontrol_extract_account_data($form_values) {
+  if (!isset($form_values['versioncontrol_svn']) || empty($form_values['account_password'])) {
+    return array();
+  }
+  switch ($form_values['serving_method']) {
+    case VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV:
+      // Apache htpasswd files can use crypt() as one possible encryption method.
+    case VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH:
+      // As /etc/passwd also uses crypt(), we might want to have it this way.
+      $password = crypt($form_values['account_password']);
+      break;
+    case VERSIONCONTROL_SVN_SERVER_SVNSERVE:
+      // Merely obfuscate the password, we need to get it back in plaintext
+      // for the 'users' file (also known as svnserve passwd file,
+      // but not related to /etc/passwd).
+      $password = crypt($form_values['account_password']);
+      break;
+  }
+  return array(
+    'svn_specific' => array(
+      'password' => $password,
+      'serving_method' => $form_values['serving_method'],
+    ),
+  );
+}

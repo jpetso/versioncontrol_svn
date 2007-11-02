@@ -22,7 +22,7 @@ function versioncontrol_svn_install() {
         uid int unsigned NOT NULL default 0,
         repo_id int unsigned NOT NULL default 0,
         password varchar(64) NOT NULL default '',
-        server_type tinyint NOT NULL default 0,
+        serving_method tinyint NOT NULL default 0,
         PRIMARY KEY (uid, repo_id)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
 
@@ -57,7 +57,7 @@ function versioncontrol_svn_install() {
         uid int NOT NULL default 0,
         repo_id int NOT NULL default 0,
         password varchar(64) NOT NULL default '',
-        server_type smallint NOT NULL default 0,
+        serving_method smallint NOT NULL default 0,
         PRIMARY KEY (uid, repo_id)
       )");
 
