@@ -1,0 +1,127 @@
+<?php
+// $Id$
+/**
+ * @file
+ * Subversion backend for Version Control API - Provides Subversion commit
+ * information and account management as a pluggable backend.
+ *
+ * Copyright 2007 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ */
+
+// Server types.
+// For the repository settings' "Allowed server types" for accounts, this is
+// a flag where allowed values are combined with the bitwise or ("|")operator,
+// and can be deassembled with the bitwise and ("&").
+define('VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV', 1); // Apache with mod_dav_svn (http(s)://)
+define('VERSIONCONTROL_SVN_SERVER_SVNSERVE',      2); // Plain svnserve (svn://)
+define('VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH',  4); // svnserve over SSH (svn+ssh://)
+
+// Update methods.
+define('VERSIONCONTROL_SVN_UPDATE_CRON',          0);
+define('VERSIONCONTROL_SVN_UPDATE_XSVN',          1);
+
+// The admin and user edit pages.
+include_once(drupal_get_path('module', 'versioncontrol_svn') .'/versioncontrol_svn.forms.inc');
+
+/**
+ * Implementation of hook_versioncontrol_backends().
+ *
+ * @return
+ *   A structured array containing information about this known backends.
+ *   Array key is the unique string identifier of the version control system.
+ *   The corresponding array values are again structured arrays and consist
+ *   of elements with the following keys:
+ *
+ *   'name': The user-visible name of the VCS.
+ *   'description': A short description of the backend, if possible not longer
+ *                  than one or two sentences.
+ *   'capabilities': An array listing optional capabilities, in addition to the
+ *                   required functionality like retrieval of detailed
+ *                   commit information. Array values can be an arbitrary
+ *                   combination of VERSIONCONTROL_CAPABILITY_* values. If no
+ *                   additional capabilities are supported by the backend,
+ *                   this array will be empty.
+ *   'autoadd': An array listing which tables should be managed by
+ *              Version Control API instead of doing it manually in
+ *              the backend. Array values can be an arbitrary combination of
+ *              VERSIONCONTROL_AUTOADD_* values. If no array additions
+ *              should be automatically managed, this array will be empty.
+ */
+function versioncontrol_svn_versioncontrol_backends() {
+  return array(
+    // The array key is up to 8 characters long, and used as unique identifier
+    // for this VCS, in functions, URLs and in the database.
+    'svn' => array(
+      // The user-visible name of the VCS.
+      'name' => 'Subversion',
+
+      // A short description of the VCS, if possible not longer than one or two sentences.
+      'description' => t('Subversion (SVN) is a code management system that supports file and directory revisions, atomic commits, serverless diffs and renaming items. Tags and branches are emulated by directory naming conventions, and merge functionality is still lacking.'),
+
+      // A list of optional capabilities, in addition to the required retrieval
+      // of detailed commit information.
+      'capabilities' => array(
+        // Able to cancel commits if the committer lacks permissions
+        // to commit to specific paths and/or branches.
+        VERSIONCONTROL_CAPABILITY_COMMIT_RESTRICTIONS,
+        // Able to cancel branch or tag assignments if the committer lacks
+        // permissions to create/update/delete those.
+        VERSIONCONTROL_CAPABILITY_BRANCH_TAG_RESTRICTIONS,
+        // Able to retrieve a file or its revision number based on a global
+        // revision identifier.
+        VERSIONCONTROL_CAPABILITY_ATOMIC_COMMITS,
+      ),
+
+      // An array listing which tables should be managed by Version Control API
+      // instead of doing it manually in the backend.
+      'flags' => array(
+        // versioncontrol_insert_repository() will automatically insert
+        // array elements from $repository['svn_specific'] into
+        // {versioncontrol_svn_repositories} and versioncontrol_get_repositories()
+        // will automatically fetch it from there.
+        VERSIONCONTROL_FLAG_AUTOADD_REPOSITORIES,
+        // versioncontrol_insert_commit() will automatically insert
+        // array elements from $commit['svn_specific'] into
+        // {versioncontrol_svn_commits} and versioncontrol_get_commits()
+        // will automatically fetch it from there.
+        VERSIONCONTROL_FLAG_AUTOADD_COMMITS,
+      ),
+    ),
+  );
+}
+
+
+/**
+ * Get the list of allowed server types for the given repository
+ * that new accounts can choose from. Essentially, this function decodes
+ * the integer number that is stored in the database to a comfortable array.
+ *
+ * @param $repository
+ *   The repository array, as returned by versioncontrol_get_repository().
+ *   May also be NULL, in which case an empty array will be returned.
+ *
+ * @return
+ *   An array containing any combination (but at least one) of the
+ *   server type constants VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV,
+ *   VERSIONCONTROL_SVN_SERVER_SVNSERVE and VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH.
+ */
+function versioncontrol_svn_get_allowed_serving_methods($repository = NULL) {
+  if (!isset($repository['svn_specific']['allowed_serving_methods'])) {
+    return array();
+  }
+
+  $server_types = array(
+    VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV,
+    VERSIONCONTROL_SVN_SERVER_SVNSERVE,
+    VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH,
+  );
+  $allowed_types_binary = $repository['svn_specific']['allowed_serving_methods'];
+  $allowed_types_array = array();
+
+  foreach ($server_types as $mask) {
+    if (($allowed_types_binary & $mask) != 0) {
+      $allowed_types_array[] = $mask;
+    }
+  }
+  return $allowed_types_array;
+}
