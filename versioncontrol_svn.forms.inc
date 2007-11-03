@@ -179,7 +179,7 @@ function versioncontrol_svn_account_form_alter($form_id, &$form) {
     $current_serving_method = db_result(db_query(
       'SELECT serving_method FROM {versioncontrol_svn_accounts}
        WHERE uid = %d', $uid
-    );
+    ));
   }
   $form['original_serving_method'] = array(
     '#type' => 'value',
