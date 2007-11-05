@@ -66,11 +66,7 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
     '#title' => t('Serving methods'),
     '#description' => t('Check the serving methods that are being used for this repository. For new Subversion accounts, one of these methods will be assigned to the account.'),
     '#default_value' => versioncontrol_svn_get_allowed_serving_methods($repository),
-    '#options' => array(
-      VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV => t('Apache with mod_dav_svn'),
-      VERSIONCONTROL_SVN_SERVER_SVNSERVE => t('Plain svnserve'),
-      VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH => t('svnserve over SSH'),
-    ),
+    '#options' => versioncontrol_svn_get_serving_method_options(),
     '#required' => TRUE,
     '#weight' => 12,
  );
@@ -118,6 +114,14 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
   );
 }
 
+function versioncontrol_svn_get_serving_method_options() {
+  return array(
+    VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV => t('Apache with mod_dav_svn'),
+    VERSIONCONTROL_SVN_SERVER_SVNSERVE => t('Plain svnserve'),
+    VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH => t('svnserve over SSH'),
+  );
+}
+
 /**
  * Implementation of hook_versioncontrol_extract_repository_data():
  * Extract SVN specific repository additions from the repository
@@ -143,6 +147,60 @@ function versioncontrol_svn_versioncontrol_extract_repository_data($form_values)
       'allowed_serving_methods' => $allowed_serving_methods,
     ),
   );
+}
+
+/**
+ * Implementation of hook_versioncontrol_alter_repository_list():
+ * Add SVN specific columns into the list of Subversion repositories.
+ * By changing the @p $header and @p $rows_by_repo_id arguments,
+ * the repository list can be customized accordingly.
+ *
+ * @param $vcs
+ *   The unique string identifier for the version control system that
+ *   the passed repository list covers.
+ * @param $repositories
+ *   An array of repositories of the given version control system.
+ *   Array keys are the repository ids, and array values are the
+ *   repository arrays like returned from versioncontrol_get_repository().
+ * @param $header
+ *   A list of columns that will be passed to theme('table').
+ * @param $rows_by_repo_id
+ *   An array of existing table rows, with repository ids as array keys.
+ *   Each row already includes the generic column values, and for each row
+ *   there is a repository with the same repository id given in the
+ *   @p $repositories parameter.
+ */
+function versioncontrol_svn_versioncontrol_alter_repository_list($vcs, $repositories, &$header, &$rows_by_repo_id) {
+  if ($vcs != 'svn') {
+    return;
+  }
+  $header[] = t('Serving method(s)');
+  $header[] = t('Update method');
+  $header[] = t('Last updated');
+
+  foreach ($rows_by_repo_id as $repo_id => $row) {
+    $allowed_serving_methods = versioncontrol_svn_get_allowed_serving_methods($repositories[$repo_id]);
+    $serving_methods = versioncontrol_svn_get_serving_method_options();
+    foreach ($serving_methods as $key => $description) {
+      if (!in_array($key, $allowed_serving_methods)) {
+        unset($serving_methods[$key]);
+      }
+    }
+    $rows_by_repo_id[$repo_id][] = theme('item_list', $serving_methods);
+
+    if ($repositories[$repo_id]['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_XSVN) {
+      $rows_by_repo_id[$repo_id][] = t('external script');
+      $rows_by_repo_id[$repo_id][] = t('n/a');
+    }
+    else if ($repositories[$repo_id]['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_CRON) {
+      $rows_by_repo_id[$repo_id][] = t('logs (!fetch)', array(
+        '!fetch' => l(t('fetch now'), 'admin/project/versioncontrol-repositories/update/'. $repo_id)
+      ));
+      $rows_by_repo_id[$repo_id][] = $repositories[$repo_id]['svn_specific']['updated']
+                                     ? format_date($repositories[$repo_id]['svn_specific']['updated'])
+                                     : t('never');
+    }
+  }
 }
 
 
@@ -186,18 +244,30 @@ function versioncontrol_svn_account_form_alter($form_id, &$form) {
     '#value' => $current_serving_method,
   );
 
-  if ($allowed_serving_methods > 1) {
-    $allowed_serving_methods = versioncontrol_svn_get_allowed_serving_methods($repository);
+  $allowed_serving_methods = versioncontrol_svn_get_allowed_serving_methods($repository);
+  if ($current_serving_method > 0 && !in_array($current_serving_method, $allowed_serving_methods)) {
+    $serving_method_must_change = TRUE;
+  }
+
+  if (count($allowed_serving_methods) > 1 || $serving_method_must_change) {
+    $serving_method_options = array(
+      VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV => t('HTTP/WebDAV ("svn co https://...")'),
+      VERSIONCONTROL_SVN_SERVER_SVNSERVE => t('SVN protocol ("svn co svn://...")'),
+      VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH => t('SVN protocol over SSH ("svn co svn+ssh://...")'),
+    );
+    foreach ($serving_method_options as $key => $description) {
+      if (!in_array($key, $allowed_serving_methods)) {
+        unset($serving_method_options[$key]);
+      }
+    }
     $form['account']['serving_method'] = array(
       '#type' => 'radios',
       '#title' => t('Repository access method'),
       '#description' => t('Choose how you want to communicate with the Subversion server.'),
-      '#default_value' => $current_serving_method,
-      '#options' => array(
-        VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV => t('HTTP/WebDAV ("svn co https://...")'),
-        VERSIONCONTROL_SVN_SERVER_SVNSERVE => t('SVN protocol ("svn co svn://...")'),
-        VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH => t('SVN protocol over SSH ("svn co svn+ssh://...")'),
-      ),
+      '#default_value' => $serving_method_must_change
+                          ? reset($allowed_serving_methods) // first available method
+                          : $current_serving_method,
+      '#options' => $serving_method_options,
       '#required' => TRUE,
       '#weight' => 12,
     );

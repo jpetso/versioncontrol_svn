@@ -125,3 +125,63 @@ function versioncontrol_svn_get_allowed_serving_methods($repository = NULL) {
   }
   return $allowed_types_array;
 }
+
+/**
+ * Implementation of [versioncontrol_backend]_account():
+ * Manage (insert, update or delete) additional SVN user account data
+ * in the database.
+ *
+ * @param $op
+ *   Either 'insert' when the account is in the process of being created,
+ *   or 'update' when username or additional module data change,
+ *   or 'delete' if it will be deleted after this function has been called.
+ * @param $uid
+ *   The Drupal user id corresponding to the VCS account.
+ * @param $username
+ *   The VCS specific username (a string).
+ * @param $repository
+ *   The repository where the user has its VCS account.
+ * @param $additional_data
+ *   An array of additional author information.
+ */
+function versioncontrol_svn_account($op, $uid, $username, $repository, $additional_data = array()) {
+  $svn_specific = $additional_data['svn_specific'];
+
+  switch ($op) {
+    case 'insert':
+      if (!isset($svn_specific) || !isset($svn_specific['password'])) {
+        drupal_set_message(t('Error: no SVN password given on account creation!'), 'error');
+        return;
+      }
+      db_query("INSERT INTO {versioncontrol_svn_accounts}
+                (uid, repo_id, password, serving_method)
+                VALUES (%d, %d, '%s', %d)",
+                $uid, $repository['repo_id'],
+                $svn_specific['password'], $svn_specific['serving_method']);
+      break;
+
+    case 'update':
+      if (!isset($svn_specific) || !isset($svn_specific['password'])) {
+        // the user didn't update the password
+        // (and neither the serving method, as a consequence).
+        return;
+      }
+      db_query("UPDATE {versioncontrol_svn_accounts}
+                SET password = '%s', serving_method = %d
+                WHERE uid = %d AND repo_id = %d",
+                $svn_specific['password'], $svn_specific['serving_method'],
+                $uid, $repository['repo_id']);
+
+      if (!user_access('administer version control systems')) {
+        // Admins get "The account has been updated successfully" anyways.
+        drupal_set_message(t('The SVN password has been updated successfully.'));
+      }
+      break;
+
+    case 'delete':
+      db_query("DELETE FROM {versioncontrol_svn_accounts}
+                WHERE uid = %d AND repo_id = %d",
+                $uid, $repository['repo_id']);
+      break;
+  }
+}
