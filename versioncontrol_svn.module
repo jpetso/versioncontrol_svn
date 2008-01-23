@@ -17,8 +17,8 @@ define('VERSIONCONTROL_SVN_SERVER_SVNSERVE',      2); // Plain svnserve (svn://)
 define('VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH',  4); // svnserve over SSH (svn+ssh://)
 
 // Update methods.
-define('VERSIONCONTROL_SVN_UPDATE_CRON',          0);
-define('VERSIONCONTROL_SVN_UPDATE_XSVN',          1);
+define('VERSIONCONTROL_SVN_UPDATE_CRON',          1);
+define('VERSIONCONTROL_SVN_UPDATE_XSVN',          2);
 
 // The admin and user edit pages.
 include_once(drupal_get_path('module', 'versioncontrol_svn') .'/versioncontrol_svn.forms.inc');

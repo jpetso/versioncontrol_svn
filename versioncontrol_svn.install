@@ -39,14 +39,14 @@ function versioncontrol_svn_install() {
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
 
       db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
-        commit_id int unsigned NOT NULL default 0,
+        vc_op_id int unsigned NOT NULL default 0,
         item_id int unsigned NOT NULL default 0,
         type tinyint NOT NULL default 0,
         path varchar(255) NOT NULL default '',
         revision varchar(32) NOT NULL default 0,
         action varchar(64) NOT NULL default 0,
         source_item_id int unsigned NOT NULL default 0,
-        PRIMARY KEY (commit_id, item_id),
+        PRIMARY KEY (vc_op_id, item_id),
         KEY (path)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
 
@@ -74,17 +74,17 @@ function versioncontrol_svn_install() {
       )");
 
       db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
-        commit_id int NOT NULL default 0,
+        vc_op_id int NOT NULL default 0,
         item_id int NOT NULL default 0,
         type smallint NOT NULL default 0,
         path varchar(255) NOT NULL default '',
         revision varchar(32) NOT NULL default 0,
         action varchar(64) NOT NULL default 0,
         source_item_id int NOT NULL default 0,
-        PRIMARY KEY (commit_id, item_id)
+        PRIMARY KEY (vc_op_id, item_id)
       )");
-      db_query("CREATE INDEX {versioncontrol_svn_item_revisions}_directory_idx
-                ON {versioncontrol_svn_item_revisions} (directory)");
+      db_query("CREATE INDEX {versioncontrol_svn_item_revisions}_path_idx
+                ON {versioncontrol_svn_item_revisions} (path)");
 
       break;
   }
@@ -99,10 +99,12 @@ function versioncontrol_svn_uninstall() {
   include_once(drupal_get_path('module', 'versioncontrol') .'/versioncontrol.module');
   include_once(drupal_get_path('module', 'versioncontrol_svn') .'/versioncontrol_svn.module');
 
-  $result = db_query("SELECT repo_id FROM {versioncontrol_repositories}
-                      WHERE vcs = 'svn'");
-  while ($repository = db_fetch_array($result)) {
-    versioncontrol_delete_repository($repository);
+  if (db_table_exists('versioncontrol_repositories')) {
+    $result = db_query("SELECT repo_id FROM {versioncontrol_repositories}
+                        WHERE vcs = 'svn'");
+    while ($repository = db_fetch_array($result)) {
+      versioncontrol_delete_repository($repository);
+    }
   }
 
   db_query('DROP TABLE {versioncontrol_svn_accounts}');
