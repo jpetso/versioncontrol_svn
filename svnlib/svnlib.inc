@@ -104,11 +104,6 @@ function _svnlib_svn_binary($svn_binary = NULL) {
  * @param $repository_url
  *   The URL of the repository (e.g. 'file:///svnroot/my-repo') or an item
  *   inside that repository (e.g. 'file:///svnroot/my-repo/subdir/hello.php').
- * @param $url_revision
- *   The revision of the URL that should be listed.
- *   This needs to be a single revision, e.g. '35' or 'HEAD'.
- *   For example, if a file was deleted in revision 36, you need to pass '35'
- *   as parameter to get its log, otherwise Subversion won't find the file.
  * @param $revision_range
  *   The revision specification that will be passed to 'svn log' as the
  *   '-r' parameter. Examples: '35' for a specific revision, 'HEAD:35' for all
@@ -118,12 +113,17 @@ function _svnlib_svn_binary($svn_binary = NULL) {
  *   result array, whereas if you specify the older revision first ('1:HEAD')
  *   then you'll get a result array with an ascending sort, the most
  *   recent revision being the last array element.
+ * @param $url_revision
+ *   The revision of the URL that should be listed.
+ *   This needs to be a single revision, e.g. '35' or 'HEAD'.
+ *   For example, if a file was deleted in revision 36, you need to pass '35'
+ *   as parameter to get its log, otherwise Subversion won't find the file.
  *
  * @return
  *   An array of detailed information about the revisions that exist in the
  *   given URL at the specified revision or revision range.
  */
-function svnlib_log($repository_url, $url_revision = 'HEAD', $revision_range = 'HEAD:1') {
+function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision = 'HEAD') {
   $cmd = array(
     escapeshellarg(escapeshellcmd(_svnlib_svn_binary())),
     'log',
