@@ -139,7 +139,7 @@ function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision =
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
   if ($return_code != 0) {
-    return FALSE; // no such revision(s) found
+    return NULL; // no such revision(s) found
   }
   $log = implode("\n", $output);
 
@@ -248,7 +248,7 @@ function svnlib_ls($repository_url, $url_revision = 'HEAD', $recursive = FALSE) 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
   if ($return_code != 0) {
-    return FALSE; // no such item or revision found
+    return NULL; // no such item or revision found
   }
   $lists = implode("\n", $output);
 
@@ -389,7 +389,7 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALS
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
   if ($return_code != 0) {
-    return FALSE; // no such item or revision found
+    return NULL; // no such item or revision found
   }
   $info = implode("\n", $output);
 
