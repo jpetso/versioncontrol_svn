@@ -2,7 +2,7 @@
 <?php
 
 $cmd = array_shift($argv);
-$rev = 'HEAD';
+$rev = 'HEAD:1';
 
 while (!empty($argv)) {
   $arg = array_shift($argv);
