@@ -11,6 +11,7 @@ while (!empty($argv)) {
     case '-r':
     case '--revision':
       $rev = array_shift($argv);
+      break;
 
     default:
       $repos[] = $arg;

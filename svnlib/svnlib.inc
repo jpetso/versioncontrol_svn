@@ -134,7 +134,6 @@ function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision =
   );
   _svnlib_add_authentication_info($cmd);
   $cmd[] = escapeshellarg($repository_url);
-  $cmd[] = "2>&1";
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
@@ -243,7 +242,6 @@ function svnlib_ls($repository_url, $url_revision = 'HEAD', $recursive = FALSE) 
   }
   _svnlib_add_authentication_info($cmd);
   $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
-  $cmd[] = "2>&1";
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
@@ -384,7 +382,6 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALS
   foreach ($repository_urls as $repository_url) {
     $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
   }
-  $cmd[] = "2>&1";
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
