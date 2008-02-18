@@ -32,4 +32,4 @@ if (empty($repos)) {
 include_once '../svnlib.inc';
 
 $result = svnlib_ls($repos[0], $rev, $recursive);
-fwrite(STDERR, print_r($result, TRUE));
+fwrite(STDOUT, print_r($result, TRUE));

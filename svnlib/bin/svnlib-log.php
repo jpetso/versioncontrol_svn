@@ -26,4 +26,4 @@ if (empty($repos)) {
 include_once '../svnlib.inc';
 
 $result = svnlib_log($repos[0], $rev);
-fwrite(STDERR, print_r($result, TRUE));
+fwrite(STDOUT, print_r($result, TRUE));
