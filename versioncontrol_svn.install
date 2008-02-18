@@ -38,18 +38,25 @@ function versioncontrol_svn_install() {
         PRIMARY KEY (repo_id)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
 
-      db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
+      db_query("CREATE TABLE {versioncontrol_svn_commit_actions} (
         vc_op_id int unsigned NOT NULL default 0,
-        item_id int unsigned NOT NULL default 0,
-        type tinyint NOT NULL default 0,
-        path varchar(255) NOT NULL default '',
-        revision varchar(32) NOT NULL default 0,
-        action varchar(64) NOT NULL default 0,
-        source_item_id int unsigned NOT NULL default 0,
-        PRIMARY KEY (vc_op_id, item_id),
-        KEY (path)
+        item_revision_id int unsigned NOT NULL default 0,
+        action tinyint NOT NULL default 0,
+        source_item_revision_id int unsigned NOT NULL default 0,
+        replaced_item_revision_id int unsigned NOT NULL default 0,
+        PRIMARY KEY (vc_op_id, item_revision_id)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
 
+      db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
+        item_revision_id int unsigned NOT NULL default 0,
+        repo_id int unsigned NOT NULL default 0,
+        path varchar(255) NOT NULL default '',
+        revision varchar(255) NOT NULL default '',
+        type tinyint NOT NULL default 0,
+        PRIMARY KEY (item_revision_id),
+        KEY (repo_id, path),
+        KEY (revision)
+      ) /*!40100 DEFAULT CHARACTER SET utf8 */");
       break;
 
     case 'pgsql':
@@ -73,19 +80,27 @@ function versioncontrol_svn_install() {
         PRIMARY KEY (repo_id)
       )");
 
-      db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
+      db_query("CREATE TABLE {versioncontrol_svn_commit_actions} (
         vc_op_id int NOT NULL default 0,
-        item_id int NOT NULL default 0,
-        type smallint NOT NULL default 0,
-        path varchar(255) NOT NULL default '',
-        revision varchar(32) NOT NULL default 0,
-        action varchar(64) NOT NULL default 0,
-        source_item_id int NOT NULL default 0,
-        PRIMARY KEY (vc_op_id, item_id)
+        item_revision_id int NOT NULL default 0,
+        action smallint NOT NULL default 0,
+        source_item_revision_id int NOT NULL default 0,
+        replaced_item_revision_id int NOT NULL default 0,
+        PRIMARY KEY (vc_op_id, item_revision_id)
       )");
-      db_query("CREATE INDEX {versioncontrol_svn_item_revisions}_path_idx
-                ON {versioncontrol_svn_item_revisions} (path)");
 
+      db_query("CREATE TABLE {versioncontrol_svn_item_revisions} (
+        item_revision_id int NOT NULL default 0,
+        repo_id int NOT NULL default 0,
+        path varchar(255) NOT NULL default '',
+        revision varchar(255) NOT NULL default '',
+        type smallint NOT NULL default 0,
+        PRIMARY KEY (item_revision_id)
+      )");
+      db_query("CREATE INDEX {versioncontrol_svn_item_revisions}_location_idx
+                ON {versioncontrol_svn_item_revisions} (repo_id, path)");
+      db_query("CREATE INDEX {versioncontrol_svn_item_revisions}_revision_idx
+                ON {versioncontrol_svn_item_revisions} (revision)");
       break;
   }
 }

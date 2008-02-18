@@ -45,7 +45,7 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
   );
 
   $form['repository_information']['root']['#description'] = t(
-    'The path of this repository. Example: /path/to/repository'
+    'The URL of this repository. Example: file:///svnroot/repo'
   );
   $form['repository_information']['update_method'] = array(
     '#type' => 'radios',
@@ -53,12 +53,11 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
     '#description' => t('Automatic log retrieval requires cron.'),
     '#default_value' => isset($repository)
                         ? $repository['svn_specific']['update_method']
-                        : VERSIONCONTROL_SVN_UPDATE_XSVN,
+                        : VERSIONCONTROL_SVN_UPDATE_CRON,
     '#weight' => 10,
     '#options' => array(
-      // log retrieval is not yet ported from subversion.module
-      // VERSIONCONTROL_SVN_UPDATE_CRON => t('Automatic log retrieval.'),
-      VERSIONCONTROL_SVN_UPDATE_XSVN => t('Use external script to insert data.'),
+      VERSIONCONTROL_SVN_UPDATE_CRON => t('Automatic log retrieval.'),
+      //VERSIONCONTROL_SVN_UPDATE_XSVN => t('Use external script to insert data.'),
     ),
   );
   $form['repository_information']['allowed_serving_methods'] = array(
@@ -82,10 +81,10 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
   $form['svn_repository_layout']['path_trunk'] = array(
     '#type' => 'textfield',
     '#title' => t('Trunk directory'),
-    '#description' => t('Specify the path of the trunk directory here. Use %1 as a placeholder for a directory name (probably the project name) that also occurs in the branches and tags paths.'),
+    '#description' => t('Specify the path of the trunk directory here. Use %project as a placeholder for a directory name (probably the project name) that also occurs in the branches and tags paths.'),
     '#default_value' => isset($repository)
                         ? $repository['svn_specific']['path_trunk']
-                        : '/%1/trunk',
+                        : '/%project/trunk',
     '#weight' => 0,
     '#size' => 40,
     '#maxlength' => 255,
@@ -93,10 +92,10 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
   $form['svn_repository_layout']['path_branches'] = array(
     '#type' => 'textfield',
     '#title' => t('Branches directory'),
-    '#description' => t('Specify the path of the branches directory here. Use %branch as a placeholder for the branch name and %1 for the directory name that was specified in the trunk directory.'),
+    '#description' => t('Specify the path of the branches directory here. Use %branch as a placeholder for the branch name and %project for the directory name that was specified in the trunk directory.'),
     '#default_value' => isset($repository)
                         ? $repository['svn_specific']['path_branches']
-                        : '/%1/branches/%branch',
+                        : '/%project/branches/%branch',
     '#weight' => 1,
     '#size' => 40,
     '#maxlength' => 255,
@@ -104,10 +103,10 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
   $form['svn_repository_layout']['path_tags'] = array(
     '#type' => 'textfield',
     '#title' => t('Tags directory'),
-    '#description' => t('Specify the path of the tags directory here. Use %tags as a placeholder for the tag name, %branch for the branch name and %1 for the directory name that was specified in the trunk directory.'),
+    '#description' => t('Specify the path of the tags directory here. Use %tags as a placeholder for the tag name, %branch for the branch name and %project for the directory name that was specified in the trunk directory.'),
     '#default_value' => isset($repository)
                         ? $repository['svn_specific']['path_tags']
-                        : '/%1/tags/%branch/%tag',
+                        : '/%project/tags/%branch/%tag',
     '#weight' => 2,
     '#size' => 40,
     '#maxlength' => 255,
@@ -194,11 +193,14 @@ function versioncontrol_svn_versioncontrol_alter_repository_list($vcs, $reposito
     }
     else if ($repositories[$repo_id]['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_CRON) {
       $rows_by_repo_id[$repo_id][] = t('logs (!fetch)', array(
-        '!fetch' => l(t('fetch now'), 'admin/project/versioncontrol-repositories/update/'. $repo_id)
+        '!fetch' => l(t('fetch now'), 'admin/project/versioncontrol-repositories/update/svn/'. $repo_id)
       ));
       $rows_by_repo_id[$repo_id][] = $repositories[$repo_id]['svn_specific']['updated']
-                                     ? format_date($repositories[$repo_id]['svn_specific']['updated'])
-                                     : t('never');
+        ? t('!date (r!revision)', array(
+             '!date' => format_date($repositories[$repo_id]['svn_specific']['updated'], 'small'),
+             '!revision' => $repositories[$repo_id]['svn_specific']['last_revision'],
+           ))
+        : t('never');
     }
   }
 }
