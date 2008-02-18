@@ -120,8 +120,9 @@ function _svnlib_svn_binary($svn_binary = NULL) {
  *   as parameter to get its log, otherwise Subversion won't find the file.
  *
  * @return
- *   An array of detailed information about the revisions that exist in the
- *   given URL at the specified revision or revision range.
+ *   An array of detailed information about the revisions that exist
+ *   in the given URL at the specified revision or revision range.
+ *   Each revision detail array has the revision number as array key.
  */
 function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision = 'HEAD') {
   $cmd = array(
@@ -133,7 +134,7 @@ function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision =
     '-v',
   );
   _svnlib_add_authentication_info($cmd);
-  $cmd[] = escapeshellarg($repository_url);
+  $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
@@ -191,7 +192,7 @@ function _svnlib_parse_log($log) {
           'rev' => (string) $logpath['copyfrom-rev'],
         );
       }
-      $paths[] = $path;
+      $paths[$path['path']] = $path;
     }
     $revision['paths'] = $paths;
     $revisions[$revision['rev']] = $revision;
