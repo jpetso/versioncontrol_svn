@@ -47,6 +47,34 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
   $form['repository_information']['root']['#description'] = t(
     'The URL of this repository. Example: file:///svnroot/repo'
   );
+
+  $form['repository_information']['svn_authentication'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Authentication'),
+    '#description' => t('If authentication is required in order to be retrieve commit logs and other information from the repository, you need to supply a username and password that will be passed to the \'svn\' executable as \'--username\' and \'--password\' options.'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#weight' => 10,
+  );
+  $form['repository_information']['svn_authentication']['auth_username'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Username'),
+    '#description' => t('Leave empty in order to fetch logs (and other information) anonymously.'),
+    '#default_value' => isset($repository) ? $repository['svn_specific']['auth_username'] : '',
+    '#weight' => 1,
+    '#size' => 40,
+    '#maxlength' => 128,
+  );
+  $form['repository_information']['svn_authentication']['auth_password'] = array(
+    '#type' => 'password',
+    '#title' => t('Password'),
+    '#description' => t('If empty, the password will not be changed.'),
+    '#default_value' => isset($repository) ? $repository['svn_specific']['auth_password'] : '',
+    '#weight' => 2,
+    '#size' => 40,
+    '#maxlength' => 128,
+  );
+
   $form['repository_information']['update_method'] = array(
     '#type' => 'radios',
     '#title' => t('Update method'),
@@ -54,12 +82,13 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
     '#default_value' => isset($repository)
                         ? $repository['svn_specific']['update_method']
                         : VERSIONCONTROL_SVN_UPDATE_CRON,
-    '#weight' => 10,
+    '#weight' => 12,
     '#options' => array(
       VERSIONCONTROL_SVN_UPDATE_CRON => t('Automatic log retrieval.'),
       //VERSIONCONTROL_SVN_UPDATE_XSVN => t('Use external script to insert data.'),
     ),
   );
+
   $form['repository_information']['allowed_serving_methods'] = array(
     '#type' => 'checkboxes',
     '#title' => t('Serving methods'),
@@ -67,8 +96,8 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
     '#default_value' => versioncontrol_svn_get_allowed_serving_methods($repository),
     '#options' => versioncontrol_svn_get_serving_method_options(),
     '#required' => TRUE,
-    '#weight' => 12,
- );
+    '#weight' => 14,
+  );
 
   $form['svn_repository_layout'] = array(
     '#type' => 'fieldset',
@@ -135,17 +164,24 @@ function versioncontrol_svn_versioncontrol_extract_repository_data($form_values)
   foreach (array_filter($form_values['allowed_serving_methods']) as $type) {
     $allowed_serving_methods |= $type;
   }
-  return array(
-    'svn_specific' => array(
-      'update_method' => $form_values['update_method'],
-      'updated'       => $form_values['updated'],
-      'last_revision' => $form_values['last_revision'],
-      'path_trunk'    => $form_values['path_trunk'],
-      'path_branches' => $form_values['path_branches'],
-      'path_tags'     => $form_values['path_tags'],
-      'allowed_serving_methods' => $allowed_serving_methods,
-    ),
+
+  $svn_specific = array(
+    'update_method' => $form_values['update_method'],
+    'updated'       => $form_values['updated'],
+    'last_revision' => $form_values['last_revision'],
+    'auth_username' => $form_values['auth_username'],
+    'path_trunk'    => $form_values['path_trunk'],
+    'path_branches' => $form_values['path_branches'],
+    'path_tags'     => $form_values['path_tags'],
+    'allowed_serving_methods' => $allowed_serving_methods,
   );
+  if (empty($form_values['auth_username'])) {
+    $svn_specific['auth_password'] = '';
+  }
+  else if (!empty($form_values['auth_password'])) {
+    $svn_specific['auth_password'] = str_rot13($form_values['auth_password']);
+  }
+  return array('svn_specific' => $svn_specific);
 }
 
 /**

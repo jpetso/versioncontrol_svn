@@ -39,6 +39,12 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     );
   }
 
+  if (!empty($repository['svn_specific']['auth_username'])) {
+    svnlib_set_authentication_info(
+      $repository['svn_specific']['auth_username'],
+      str_rot13($repository['svn_specific']['auth_password'])
+    );
+  }
   $last_revision = $repository['svn_specific']['last_revision'];
 
   $info_items = svnlib_info($repository['root']);
@@ -94,14 +100,15 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
           'revision' => (string) $rev_action['current_item']['rev'],
           'svn_specific' => array(),
         ),
-        'source items' => array(),
       );
       if (isset($rev_action['source_item'])) {
-        $commit_action['source items'][] = array(
-          'type' => $svnlib_mapping['types'][$rev_action['source_item']['type']],
-          'path' => $rev_action['source_item']['path'],
-          'revision' => (string) $rev_action['source_item']['rev'],
-          'svn_specific' => array(),
+        $commit_action['source items'] = array(
+          array(
+            'type' => $svnlib_mapping['types'][$rev_action['source_item']['type']],
+            'path' => $rev_action['source_item']['path'],
+            'revision' => (string) $rev_action['source_item']['rev'],
+            'svn_specific' => array(),
+          ),
         );
       }
       if (isset($rev_action['replaced_item'])) {
