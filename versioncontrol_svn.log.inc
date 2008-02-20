@@ -94,24 +94,22 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
           'revision' => (string) $rev_action['current_item']['rev'],
           'svn_specific' => array(),
         ),
-        'source items' => array(),
       );
-      if (isset($rev_action['source_item'])) {
-        $commit_action['source items'][] = array(
-          'type' => $svnlib_mapping['types'][$rev_action['source_item']['type']],
-          'path' => $rev_action['source_item']['path'],
-          'revision' => (string) $rev_action['source_item']['rev'],
-          'svn_specific' => array(),
+      if ($commit_action['action'] != VERSIONCONTROL_ACTION_ADDED)) {
+        $commit_action['source items'] = array(
+          array(
+            'type' => $svnlib_mapping['types'][$rev_action['source_item']['type']],
+            'path' => $rev_action['source_item']['path'],
+            'revision' => (string) $rev_action['source_item']['rev'],
+            'svn_specific' => array(),
+          ),
         );
       }
-      if (isset($rev_action['replaced_item'])) {
-        $commit_action['replaced item'] = array(
-          'type' => $svnlib_mapping['types'][$rev_action['replaced_item']['type']],
-          'path' => $rev_action['replaced_item']['path'],
-          'revision' => (string) $rev_action['replaced_item']['rev'],
-          'svn_specific' => array(),
-        );
+      // Version Control API 5.x-1.x compatibility stuff, deprecated already
+      if ($commit_action['action'] == VERSIONCONTROL_ACTION_DELETED)) {
+        unset($commit_action['current item']);
       }
+      // Ok, let's store the commit action the way we have it now.
       $commit_actions[$commit_action['current item']['path']] = $commit_action;
     }
 

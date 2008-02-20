@@ -172,14 +172,17 @@ function versioncontrol_svn_commit($op, $commit, $commit_actions) {
     case 'insert':
       foreach ($commit_actions as $path => $action) {
         // Default values in case source and/or replaced items don't exist.
+        $current_item_revision_id = 0;
         $source_item_revision_id = 0;
         $replaced_item_revision_id = 0;
 
         // Preparation: store the new item in the database.
-        $action['current item'] = _versioncontrol_svn_insert_item_revision(
-          $commit['repository'], $action['current item']
-        );
-
+        if (isset($action['current item'])) {
+          $action['current item'] = _versioncontrol_svn_insert_item_revision(
+            $commit['repository'], $action['current item']
+          );
+          $current_item_revision_id = $action['current item']['svn_specific']['item_revision_id'];
+        }
         // Get item revision ids of source and replaced item (if those exist)
         // and create them if the database doesn't already have entries.
         if (isset($action['source items'][0])) {
@@ -200,8 +203,8 @@ function versioncontrol_svn_commit($op, $commit, $commit_actions) {
           "INSERT INTO {versioncontrol_svn_commit_actions}
             (vc_op_id, item_revision_id, action, source_item_revision_id, replaced_item_revision_id)
             VALUES (%d, %d, %d, %d, %d)",
-            $commit['vc_op_id'], $action['current item']['svn_specific']['item_revision_id'],
-            $action['action'], $source_item_revision_id, $replaced_item_revision_id
+            $commit['vc_op_id'], $current_item_revision_id, $action['action'],
+            $source_item_revision_id, $replaced_item_revision_id
         );
       }
       break;
