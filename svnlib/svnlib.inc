@@ -44,7 +44,7 @@ function svnlib_unset_authentication_info() {
 function _svnlib_add_authentication_info(&$cmd) {
   $auth_info = _svnlib_authentication_info();
   if (isset($auth_info)) {
-     return array_merge($cmd, array(
+     $cmd = array_merge($cmd, array(
        '--username', escapeshellarg($auth_info['username']),
        '--password', escapeshellarg($auth_info['password']),
      ));
