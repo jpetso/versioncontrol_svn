@@ -18,14 +18,6 @@ function versioncontrol_svn_install() {
   switch ($GLOBALS['db_type']) {
     case 'mysqli':
     case 'mysql':
-      db_query("CREATE TABLE {versioncontrol_svn_accounts} (
-        uid int unsigned NOT NULL default 0,
-        repo_id int unsigned NOT NULL default 0,
-        password varchar(64) NOT NULL default '',
-        serving_method tinyint NOT NULL default 0,
-        PRIMARY KEY (uid, repo_id)
-      ) /*!40100 DEFAULT CHARACTER SET utf8 */");
-
       db_query("CREATE TABLE {versioncontrol_svn_repositories} (
         repo_id int unsigned NOT NULL default 0,
         update_method tinyint unsigned NOT NULL default 0,
@@ -34,7 +26,6 @@ function versioncontrol_svn_install() {
         path_trunk varchar(128) NOT NULL default '',
         path_branches varchar(128) NOT NULL default '',
         path_tags varchar(128) NOT NULL default '',
-        allowed_serving_methods tinyint NOT NULL default 0,
         PRIMARY KEY (repo_id)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */");
 
@@ -60,14 +51,6 @@ function versioncontrol_svn_install() {
       break;
 
     case 'pgsql':
-      db_query("CREATE TABLE {versioncontrol_svn_accounts} (
-        uid int NOT NULL default 0,
-        repo_id int NOT NULL default 0,
-        password varchar(64) NOT NULL default '',
-        serving_method smallint NOT NULL default 0,
-        PRIMARY KEY (uid, repo_id)
-      )");
-
       db_query("CREATE TABLE {versioncontrol_svn_repositories} (
         repo_id int NOT NULL default 0,
         update_method smallint NOT NULL default 0,
@@ -76,7 +59,6 @@ function versioncontrol_svn_install() {
         path_trunk varchar(128) NOT NULL default '',
         path_branches varchar(128) NOT NULL default '',
         path_tags varchar(128) NOT NULL default '',
-        allowed_serving_methods smallint NOT NULL default 0,
         PRIMARY KEY (repo_id)
       )");
 
