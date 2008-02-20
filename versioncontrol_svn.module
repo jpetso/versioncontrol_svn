@@ -63,10 +63,12 @@ function versioncontrol_svn_versioncontrol_backends() {
       'capabilities' => array(
         // Able to cancel commits if the committer lacks permissions
         // to commit to specific paths and/or branches.
-        VERSIONCONTROL_CAPABILITY_COMMIT_RESTRICTIONS,
+        // Not implemented yet.
+        //VERSIONCONTROL_CAPABILITY_COMMIT_RESTRICTIONS,
         // Able to cancel branch or tag assignments if the committer lacks
         // permissions to create/update/delete those.
-        VERSIONCONTROL_CAPABILITY_BRANCH_TAG_RESTRICTIONS,
+        // Not implemented yet.
+        //VERSIONCONTROL_CAPABILITY_BRANCH_TAG_RESTRICTIONS,
         // Able to retrieve a file or its revision number based on a global
         // revision identifier.
         VERSIONCONTROL_CAPABILITY_ATOMIC_COMMITS,
@@ -246,9 +248,6 @@ function versioncontrol_svn_get_commit_actions($commit) {
     }
 
     $commit_actions[$action['current item']['path']] = $action;
-  }
-  if ($commit['revision'] == '5') {
-    drupal_set_message('<pre>Commit action: '. print_r($commit_actions, TRUE) .'</pre>');
   }
   return $commit_actions;
 }
