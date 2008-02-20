@@ -208,9 +208,6 @@ function versioncontrol_svn_get_commit_actions($commit) {
 
     $commit_actions[$action['current item']['path']] = $action;
   }
-  if ($commit['revision'] == '5') {
-    drupal_set_message('<pre>Commit action: '. print_r($commit_actions, TRUE) .'</pre>');
-  }
   return $commit_actions;
 }
 
