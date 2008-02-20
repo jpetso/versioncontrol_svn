@@ -39,6 +39,12 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     );
   }
 
+  if (!empty($repository['svn_specific']['auth_username'])) {
+    svnlib_set_authentication_info(
+      $repository['svn_specific']['auth_username'],
+      str_rot13($repository['svn_specific']['auth_password'])
+    );
+  }
   $last_revision = $repository['svn_specific']['last_revision'];
 
   $info_items = svnlib_info($repository['root']);
