@@ -55,48 +55,6 @@ function versioncontrol_svn_repository_admin_form_alter($form_id, &$form) {
       //VERSIONCONTROL_SVN_UPDATE_XSVN => t('Use external script to insert data.'),
     ),
   );
-
-  $form['svn_repository_layout'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Repository layout'),
-    '#description' => t('In order to recognize branches and tags, the Subversion backend needs to know where the trunk, branches and tags directories are located in this repository.'),
-    '#collapsible' => TRUE,
-    '#collapsed' => TRUE,
-    '#weight' => 2,
-  );
-  $form['svn_repository_layout']['path_trunk'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Trunk directory'),
-    '#description' => t('Specify the path of the trunk directory here. Use %project as a placeholder for a directory name (probably the project name) that also occurs in the branches and tags paths.'),
-    '#default_value' => isset($repository)
-                        ? $repository['svn_specific']['path_trunk']
-                        : '/%project/trunk',
-    '#weight' => 0,
-    '#size' => 40,
-    '#maxlength' => 255,
-  );
-  $form['svn_repository_layout']['path_branches'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Branches directory'),
-    '#description' => t('Specify the path of the branches directory here. Use %branch as a placeholder for the branch name and %project for the directory name that was specified in the trunk directory.'),
-    '#default_value' => isset($repository)
-                        ? $repository['svn_specific']['path_branches']
-                        : '/%project/branches/%branch',
-    '#weight' => 1,
-    '#size' => 40,
-    '#maxlength' => 255,
-  );
-  $form['svn_repository_layout']['path_tags'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Tags directory'),
-    '#description' => t('Specify the path of the tags directory here. Use %tags as a placeholder for the tag name, %branch for the branch name and %project for the directory name that was specified in the trunk directory.'),
-    '#default_value' => isset($repository)
-                        ? $repository['svn_specific']['path_tags']
-                        : '/%project/tags/%branch/%tag',
-    '#weight' => 2,
-    '#size' => 40,
-    '#maxlength' => 255,
-  );
 }
 
 /**
@@ -113,9 +71,6 @@ function versioncontrol_svn_versioncontrol_extract_repository_data($form_values)
       'update_method' => $form_values['update_method'],
       'updated'       => $form_values['updated'],
       'last_revision' => $form_values['last_revision'],
-      'path_trunk'    => $form_values['path_trunk'],
-      'path_branches' => $form_values['path_branches'],
-      'path_tags'     => $form_values['path_tags'],
     ),
   );
 }
