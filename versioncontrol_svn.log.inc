@@ -49,7 +49,10 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
 
   $info_items = svnlib_info($repository['root']);
   if (!$info_items) {
-    return t('No repository exists at %url.', array('%url' => $repository['root']));
+    return t('The repository at %url could not be accessed. Error message from \'svn info\': !error', array(
+      '%url' => $repository['root'],
+      '!error' => '<pre>'. check_plain(svnlib_last_error_message()) .'</pre>',
+    ));
   }
   // By retrieving the repository root, we can even allow
   // non-root repository URLs to be specified in the admin UI.
