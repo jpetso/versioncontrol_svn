@@ -98,6 +98,85 @@ function _svnlib_svn_binary($svn_binary = NULL) {
 }
 
 /**
+ * Append an appropriate output pipe to a $cmd array, which causes STDERR
+ * to be written to a random file.
+ *
+ * @return
+ *   An array with the temporary files that will be created when $cmd
+ *   is executed. In its current form, the return array only contains
+ *   the filename for STDERR output as 'stderr' array element.
+ */
+function _svnlib_add_output_pipes(&$cmd) {
+  $tempdir = file_directory_temp();
+  $tempfiles = array(
+    'stderr' => $tempdir .'/drupal_versioncontrol_svn.stderr.'. mt_rand() .'.txt',
+  );
+  $cmd[] = '2> '. $tempfiles['stderr'];
+  return $tempfiles;
+}
+
+/**
+ * Delete temporary files that have been created by a command which included
+ * output pipes from _svnlib_add_output_pipes().
+ */
+function _svnlib_delete_temporary_files($tempfiles) {
+  @unlink($tempfiles['stderr']);
+}
+
+/**
+ * Read the STDERR output for a command that was executed.
+ * The output must have been written to a temporary file which was given
+ * by _svnlib_add_output_pipes(). The temporary file is deleted after it
+ * has been read. After calling the function, the error message can be
+ * retrieved by calling svnlib_last_error_message() or discarded by calling
+ * svnlib_unset_error_message().
+ */
+function _svnlib_set_error_message($tempfiles) {
+  _svnlib_error_message(file_get_contents($tempfiles['stderr']));
+  @unlink($tempfiles['stderr']);
+}
+
+/**
+ * Retrieve the STDERR output from the last invocation of 'svn' that exited
+ * with a non-zero status code. This error message will stay the same until it
+ * is unset with svnlib_unset_error_message() or a subsequent 'svn' invocation
+ * fails as well. If no message is set, this function returns NULL.
+ *
+ * For better security, it is advisable to run the returned error message
+ * through check_plain() or similar string checker functions.
+ */
+function svnlib_last_error_message() {
+  return _svnlib_error_message();
+}
+
+/**
+ * Unset the currently stored error message, in order to free a tiny bit
+ * of memory.
+ */
+function svnlib_unset_error_message() {
+  _svnlib_error_message(FALSE);
+}
+
+/**
+ * Write or retrieve an error message, stored in a static variable.
+ *
+ * @param $info
+ *   NULL to retrieve the message, FALSE to unset it, or a string containing
+ *   the new message to remember it for later retrieval.
+ */
+function _svnlib_error_message($message = NULL) {
+  static $error_message = NULL;
+
+  if (!isset($message)) {
+    return $error_message;
+  }
+  else {
+    $error_message = ($message === FALSE) ? NULL : $message;
+    return $error_message;
+  }
+}
+
+/**
  * Return commit log messages of a repository URL. This function is equivalent
  * to 'svn log -v -r $revision_range $repository_url'.
  *
@@ -123,6 +202,9 @@ function _svnlib_svn_binary($svn_binary = NULL) {
  *   An array of detailed information about the revisions that exist
  *   in the given URL at the specified revision or revision range.
  *   Each revision detail array has the revision number as array key.
+ *   If the 'svn log' invocation exited with an error, this function
+ *   returns NULL and the error message can be retrieved by calling
+ *   svnlib_last_error_message().
  */
 function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision = 'HEAD') {
   $cmd = array(
@@ -135,13 +217,16 @@ function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision =
   );
   _svnlib_add_authentication_info($cmd);
   $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
+  $tempfiles = _svnlib_add_output_pipes($cmd);
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
   if ($return_code != 0) {
+    _svnlib_set_error_message($tempfiles);
     return NULL; // no such revision(s) found
   }
   $log = implode("\n", $output);
+  _svnlib_delete_temporary_files($tempfiles);
 
   return _svnlib_parse_log($log);
 }
@@ -230,6 +315,9 @@ function _svnlib_parse_log($log) {
  *   contains a single entry with this file, whereas if @p $repository_url
  *   refers to a directory then the array contains all items inside this
  *   directory (but not the directory itself).
+ *   If the 'svn ls' invocation exited with an error, this function
+ *   returns NULL and the error message can be retrieved by calling
+ *   svnlib_last_error_message().
  */
 function svnlib_ls($repository_url, $url_revision = 'HEAD', $recursive = FALSE) {
   $cmd = array(
@@ -243,13 +331,16 @@ function svnlib_ls($repository_url, $url_revision = 'HEAD', $recursive = FALSE) 
   }
   _svnlib_add_authentication_info($cmd);
   $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
+  $tempfiles = _svnlib_add_output_pipes($cmd);
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
   if ($return_code != 0) {
+    _svnlib_set_error_message($tempfiles);
     return NULL; // no such item or revision found
   }
   $lists = implode("\n", $output);
+  _svnlib_delete_temporary_files($tempfiles);
 
   return _svnlib_parse_ls($lists, $recursive);
 }
@@ -360,6 +451,9 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   the specified URL(s). If @p $repository_url refers to a directory and
  *   @p $recursive is TRUE, the array also includes information about all
  *   descendants of the items that correspond to the specified URL(s).
+ *   If the 'svn info' invocation exited with an error, this function
+ *   returns NULL and the error message can be retrieved by calling
+ *   svnlib_last_error_message().
  */
 function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALSE, $target_revision = NULL) {
   if (!is_array($repository_urls)) { // it's a single URL as a string!
@@ -383,13 +477,16 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALS
   foreach ($repository_urls as $repository_url) {
     $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
   }
+  $tempfiles = _svnlib_add_output_pipes($cmd);
 
   $return_code = 0;
   exec(implode(' ', $cmd), $output, $return_code);
   if ($return_code != 0) {
+    _svnlib_set_error_message($tempfiles);
     return NULL; // no such item or revision found
   }
   $info = implode("\n", $output);
+  _svnlib_delete_temporary_files($tempfiles);
 
   return _svnlib_parse_info($info, $recursive);
 }
