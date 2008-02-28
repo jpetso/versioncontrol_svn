@@ -38,10 +38,10 @@ function svnlib_unset_authentication_info() {
 }
 
 /**
- * Append username and password to a $cmd array if authentication info
- * has been set before by the caller.
+ * Append the option for our custom config dir to a $cmd array,
+ * and also username and password if those have been set before.
  */
-function _svnlib_add_authentication_info(&$cmd) {
+function _svnlib_add_common_options(&$cmd) {
   $auth_info = _svnlib_authentication_info();
   if (isset($auth_info)) {
      $cmd = array_merge($cmd, array(
@@ -49,6 +49,7 @@ function _svnlib_add_authentication_info(&$cmd) {
        '--password', escapeshellarg($auth_info['password']),
      ));
   }
+  $cmd[] = '--config-dir '. dirname(__FILE__) .'/configdir';
 }
 
 /**
@@ -215,7 +216,7 @@ function svnlib_log($repository_url, $revision_range = 'HEAD:1', $url_revision =
     '--xml',
     '-v',
   );
-  _svnlib_add_authentication_info($cmd);
+  _svnlib_add_common_options($cmd);
   $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
   $tempfiles = _svnlib_add_output_pipes($cmd);
 
@@ -329,7 +330,7 @@ function svnlib_ls($repository_url, $url_revision = 'HEAD', $recursive = FALSE) 
   if ($recursive) {
     $cmd[] = '-R';
   }
-  _svnlib_add_authentication_info($cmd);
+  _svnlib_add_common_options($cmd);
   $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
   $tempfiles = _svnlib_add_output_pipes($cmd);
 
@@ -473,7 +474,7 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALS
   if ($recursive) {
     $cmd[] = '-R';
   }
-  _svnlib_add_authentication_info($cmd);
+  _svnlib_add_common_options($cmd);
   foreach ($repository_urls as $repository_url) {
     $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
   }
