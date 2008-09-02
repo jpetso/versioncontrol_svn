@@ -128,12 +128,16 @@ function versioncontrol_svn_uninstall() {
 
   db_query('DROP TABLE {versioncontrol_svn_accounts}');
   db_query('DROP TABLE {versioncontrol_svn_repositories}');
+  db_query('DROP TABLE {versioncontrol_svn_commit_actions}');
   db_query('DROP TABLE {versioncontrol_svn_item_revisions}');
 }
 
 
 // Update functions.
 
+/**
+ * Update 1: New authentication columns that hadn't been considered before.
+ */
 function versioncontrol_svn_update_1() {
   $ret = array();
 
@@ -154,5 +158,19 @@ function versioncontrol_svn_update_1() {
                            ADD COLUMN auth_password varchar(128) NOT NULL default ''");
       break;
   }
+  return $ret;
+}
+
+/**
+ * Update 2: Version Control API now provides sane constants for item and
+ *   action types - starting at 1 instead of 0. So, update the internal
+ *   representation.
+ */
+function versioncontrol_svn_update_2() {
+  $ret = array();
+  $ret[] = update_sql('UPDATE {versioncontrol_svn_commit_actions}
+                       SET action = action + 1');
+  $ret[] = update_sql('UPDATE {versioncontrol_svn_item_revisions}
+                       SET type = type + 1');
   return $ret;
 }
