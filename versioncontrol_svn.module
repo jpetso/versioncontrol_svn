@@ -166,19 +166,27 @@ function versioncontrol_svn_get_allowed_serving_methods($repository = NULL) {
 
 
 /**
- * Implementation of [versioncontrol_backend]_get_current_item_branch():
- * Retrieve the current branch that this item is in.
+ * Implementation of [versioncontrol_backend]_get_selected_operation_item_label():
+ * Retrieve the tag or branch that applied to that item during the given
+ * operation. The result of this function will be used for the 'selected_label'
+ * property of each item, which is necessary to provide a starting point for
+ * branch and tag navigation.
  */
-function versioncontrol_svn_get_current_item_branch($repository, $item) {
-  return NULL; // no branch emulation for now, might follow later on
+function versioncontrol_svn_get_selected_operation_item_label($operation, $item) {
+  // No branch/tag support yet, might be implemented in the future.
+  return NULL;
 }
 
 /**
- * Implementation of [versioncontrol_backend]_get_current_item_tag():
- * Retrieve the current tag that has been applied to this item.
+ * Implementation of [versioncontrol_backend]_get_selected_source_item_label():
+ * Retrieve the tag or branch that applied to the source item of a given
+ * successor item revision (a.k.a. "target item"). The result of this function
+ * will be used for the 'selected_label' property of each item, which is
+ * necessary to provide a starting point for branch and tag navigation.
  */
-function versioncontrol_svn_get_current_item_tag($repository, $item) {
-  return NULL; // no tag emulation for now, might follow later on
+function versioncontrol_svn_get_selected_source_item_label($repository, $target_item, $source_item) {
+  // No branch/tag support yet, might be implemented in the future.
+  return NULL;
 }
 
 
