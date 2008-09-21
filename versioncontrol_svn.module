@@ -191,6 +191,79 @@ function versioncontrol_svn_get_selected_source_item_label($repository, $target_
 
 
 /**
+ * Include the svnlib.inc helper library and initialize persistent
+ * repository settings that will be reused in later svnlib function calls.
+ */
+function _versioncontrol_svn_init_svnlib($repository) {
+  include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib.inc');
+
+  if (!empty($repository['svn_specific']['auth_username'])) {
+    svnlib_set_authentication_info(
+      $repository['svn_specific']['auth_username'],
+      str_rot13($repository['svn_specific']['auth_password'])
+    );
+  }
+}
+
+/**
+ * Implementation of [versioncontrol_backend]_get_item():
+ * Try to retrieve a given item in a repository.
+ */
+function versioncontrol_svn_get_item($repository, $path, $revision = '') {
+  _versioncontrol_svn_init_svnlib($repository);
+
+  if (empty($revision)) {
+    $revision = 'HEAD';
+  }
+  $info = svnlib_info($repository['root'] . $path, $revision);
+  if (!isset($info[$path])) {
+    return NULL;
+  }
+
+  $item = array(
+    'path' => $info[$path]['path'],
+    'revision' => $info[$path]['created_rev'],
+    'type' => ($info[$path]['type'] == 'dir')
+              ? VERSIONCONTROL_ITEM_DIRECTORY
+              : VERSIONCONTROL_ITEM_FILE,
+  );
+  return array('item' => $item, 'selected_label' => NULL);
+}
+
+/**
+ * Implementation of [versioncontrol_backend]_get_directory_contents():
+ * Retrieve the set of files and directories that exist at a specified revision
+ * in the given directory inside the repository.
+ */
+function versioncontrol_svn_get_directory_contents($repository, $directory_item, $recursive = FALSE) {
+  _versioncontrol_svn_init_svnlib($repository);
+
+  $contents = svnlib_info(
+    $repository['root'] . $directory_item['path'], $directory_item['revision'],
+    $recursive ? 'infinite' : 'immediates'
+  );
+  if (empty($contents)) {
+    return NULL;
+  }
+  $items = array();
+
+  foreach ($contents as $path => $item_info) {
+    $items[$path] = array(
+      'item' => array(
+        'path' => $item_info['path'],
+        'revision' => $item_info['created_rev'],
+        'type' => ($item_info['type'] == 'dir')
+                  ? VERSIONCONTROL_ITEM_DIRECTORY
+                  : VERSIONCONTROL_ITEM_FILE,
+      ),
+      'selected_label' => NULL,
+    );
+  }
+  return $items;
+}
+
+
+/**
  * Implementation of [versioncontrol_backend]_account():
  * Manage (insert, update or delete) additional SVN user account data
  * in the database.
