@@ -178,7 +178,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
       }
 
       // The hard part is 'D'. There are two possible cases...
-      if ($action['action'] == 'D') {
+      if ($actions[$path]['action'] == 'D') {
         // a) The item existed in that place before it was deleted. Cool.
         $source_items = svnlib_info_cached($actions[$path]['url'], $revision['rev'] - 1);
         if ($source_items) {
