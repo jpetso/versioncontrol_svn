@@ -407,7 +407,7 @@ function _svnlib_parse_ls($lists, $recursive) {
 
 /**
  * Returns detail information about a directory or file item in the repository.
- * In many cases, svnlib_info() is the better svnlib_ls(), as it retrieves not
+ * In most cases, svnlib_info() is the better svnlib_ls(), as it retrieves not
  * only item names but also repository root and the path of each item
  * inside the repository.
  *
@@ -429,11 +429,14 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   For example, if a file was deleted in revision 36, you need to pass '35'
  *   as parameter to get its info, otherwise Subversion won't find the file.
  *   In case multiple URLs are passed, this revision applies to each of them.
- * @param $recursive
- *   FALSE to retrieve the information for just the specified URL(s),
- *   or TRUE to retrieve all descendant items as well. If $recursive is TRUE
- *   then each directory item in the result array will have an additional
- *   array element 'children' which contains the list entries below
+ * @param $depth
+ *   Specifies if info for descendant items should be retrieved as well, and
+ *   if so, which of those. The default 'empty' will not retrieve any children,
+ *   'files' will retrieve all immediate file children, 'immediates' will
+ *   retrieve file and directory children, and 'infinity' will retrieve all
+ *   descendant items there are, recursively. If $depth is something else
+ *   than 'empty' then each directory item in the result array will have an
+ *   additional array element 'children' which contains the list entries below
  *   this directory, as array keys in the result array.
  *
  *   If @p $repository_url refers to a file then the @p $recursive parameter
@@ -456,7 +459,7 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   returns NULL and the error message can be retrieved by calling
  *   svnlib_last_error_message().
  */
-function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALSE, $target_revision = NULL) {
+function svnlib_info($repository_urls, $url_revision = 'HEAD', $depth = 'empty', $target_revision = NULL) {
   if (!is_array($repository_urls)) { // it's a single URL as a string!
     $repository_urls = array($repository_urls);
   }
@@ -466,13 +469,11 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALS
     'info',
     '--non-interactive',
     '--xml',
+    '--depth', $depth,
   );
   if (isset($target_revision)) {
     $cmd[] = '-r';
     $cmd[] = $target_revision;
-  }
-  if ($recursive) {
-    $cmd[] = '-R';
   }
   _svnlib_add_common_options($cmd);
   foreach ($repository_urls as $repository_url) {
