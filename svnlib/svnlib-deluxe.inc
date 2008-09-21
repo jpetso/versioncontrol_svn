@@ -239,6 +239,18 @@ function svnlib_more_log_info($revisions, $repository_root) {
         }
         $actions[$path] = $original_action;
 
+        // If the copy/move action heuristics and the delete action heuristics
+        // retrieve the same item, then we've got the rare special case that
+        // the parent directory has been copied to a new location where the
+        // old copied item was swapped against a new one. (Yeah, happens.)
+        // Same item as 'source_item' and 'replaced_item' is bad, so guard
+        // against this.
+        if ($actions[$path]['source_item']['path'] == $actions[$path]['replaced_item']['path']
+            && $actions[$path]['source_item']['rev'] == $actions[$path]['replaced_item']['rev']) {
+          $actions[$path]['action'] = 'A';
+          unset($actions[$path]['source_item']);
+        }
+
         // Cleaning up properties that should not be included in the result.
         unset($actions[$path]['replaced']);
       }
