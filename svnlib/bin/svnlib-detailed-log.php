@@ -24,6 +24,7 @@ if (empty($repos)) {
 }
 
 define(SVNLIB_DEBUG, 1); // pretty status indicator dots for each revision
+include_once './svnlib-bin-support.inc';
 include_once '../svnlib-deluxe.inc';
 
 $items = svnlib_info($repos[0]);

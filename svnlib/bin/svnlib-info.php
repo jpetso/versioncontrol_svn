@@ -29,6 +29,7 @@ if (empty($repos)) {
   exit(1);
 }
 
+include_once './svnlib-bin-support.inc';
 include_once '../svnlib.inc';
 
 $result = svnlib_info($repos, $rev, $recursive);
