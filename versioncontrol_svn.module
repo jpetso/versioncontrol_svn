@@ -172,19 +172,21 @@ function versioncontrol_svn_get_allowed_serving_methods($repository = NULL) {
  * property of each item, which is necessary to provide a starting point for
  * branch and tag navigation.
  */
-function versioncontrol_svn_get_selected_operation_item_label($operation, $item) {
+function versioncontrol_svn_get_selected_label_from_operation($operation, $target_item) {
   // No branch/tag support yet, might be implemented in the future.
   return NULL;
 }
 
 /**
- * Implementation of [versioncontrol_backend]_get_selected_source_item_label():
- * Retrieve the tag or branch that applied to the source item of a given
- * successor item revision (a.k.a. "target item"). The result of this function
- * will be used for the 'selected_label' property of each item, which is
- * necessary to provide a starting point for branch and tag navigation.
+ * Implementation of [versioncontrol_backend]_get_selected_label_from_other_item():
+ * Retrieve a valid label (tag or branch) for a new @p $target_item that is
+ * (hopefully) similar or related to that of the given @p $other_item which
+ * already has a selected label assigned. If the backend cannot find a related
+ * label, return any valid label. The result of this function will be used for
+ * the selected label property of each item, which is necessary to preserve the
+ * item state throughout navigational API functions.
  */
-function versioncontrol_svn_get_selected_source_item_label($repository, $target_item, $source_item) {
+function versioncontrol_svn_get_selected_label_from_other_item($repository, $target_item, &$other_item, $other_item_tags = array()) {
   // No branch/tag support yet, might be implemented in the future.
   return NULL;
 }
