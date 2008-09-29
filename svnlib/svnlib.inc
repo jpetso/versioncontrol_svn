@@ -579,3 +579,89 @@ function _svnlib_parse_info($info, $recursive) {
   }
   return $items;
 }
+
+
+/**
+ * Copy the contents of a file in a repository to a given destination.
+ * This function is equivalent to
+ * 'svn cat $repository_url@$url_revision > $destination'.
+ *
+ * @param $repository_url
+ *   The URL of the file, e.g. 'file:///svnroot/my-repo/subdir/hello.php'.
+ * @param $url_revision
+ *   The revision of the URL that should be queried for the property.
+ *   This needs to be a single revision, e.g. '35' or 'HEAD'.
+ *
+ * @return
+ *   TRUE if the file was created successfully. If the 'svn cat' invocation
+ *   exited with an error, this function returns FALSE and the error message
+ *   can be retrieved by calling svnlib_last_error_message().
+ */
+function svnlib_cat($destination, $repository_url, $url_revision = 'HEAD') {
+  $cmd = array(
+    escapeshellarg(escapeshellcmd(_svnlib_svn_binary())),
+    'cat',
+    '--non-interactive',
+  );
+  _svnlib_add_common_options($cmd);
+  $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
+  $cmd[] = '> '. $destination;
+  $tempfiles = _svnlib_add_output_pipes($cmd);
+
+  $return_code = 0;
+  exec(implode(' ', $cmd), $output, $return_code);
+  if ($return_code != 0) {
+    @unlink($destination);
+    _svnlib_set_error_message($tempfiles);
+    return NULL; // no such item or revision found
+  }
+  _svnlib_delete_temporary_files($tempfiles);
+  return TRUE;
+}
+
+/**
+ * Return a specific SVN property of the given file or directory in the
+ * repository. This function is equivalent to
+ * 'svn propget $property_name $repository_url@$url_revision'.
+ *
+ * @param $property_name
+ *   The name of the property, e.g. 'svn:mime-type' or 'svn:executable'.
+ * @param $repository_url
+ *   The URL of the item (e.g. 'file:///svnroot/my-repo/subdir/hello.php')
+ *   or the repository itself (e.g. 'file:///svnroot/my-repo'), as string.
+ * @param $url_revision
+ *   The revision of the URL that should be queried for the property.
+ *   This needs to be a single revision, e.g. '35' or 'HEAD'.
+ *
+ * @return
+ *   A string containing the specified property for the item in the given
+ *   revision, an empty string if this property is not set. If the
+ *   'svn propget' invocation exited with an error, this function
+ *   returns NULL and the error message can be retrieved by calling
+ *   svnlib_last_error_message().
+ */
+function svnlib_propget($property_name, $repository_url, $url_revision = 'HEAD') {
+  $cmd = array(
+    escapeshellarg(escapeshellcmd(_svnlib_svn_binary())),
+    'propget',
+    $property_name,
+    '--non-interactive',
+  );
+  _svnlib_add_common_options($cmd);
+  $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
+  $tempfiles = _svnlib_add_output_pipes($cmd);
+
+  $return_code = 0;
+  exec(implode(' ', $cmd), $output, $return_code);
+  if ($return_code != 0) {
+    _svnlib_set_error_message($tempfiles);
+    return NULL; // no such item or revision found
+  }
+  $property = trim(implode('', $output));
+  _svnlib_delete_temporary_files($tempfiles);
+
+  if (empty($property)) {
+    return '';
+  }
+  return $property;
+}

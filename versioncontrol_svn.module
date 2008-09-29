@@ -197,9 +197,17 @@ function versioncontrol_svn_get_selected_label_from_other_item($repository, $tar
  * repository settings that will be reused in later svnlib function calls.
  */
 function _versioncontrol_svn_init_svnlib($repository) {
-  include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib.inc');
+  static $current_repo_id;
 
-  if (!empty($repository['svn_specific']['auth_username'])) {
+  if (!isset($current_repo_id)) {
+    include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib.inc');
+  }
+  $current_repo_id = $repository['repo_id'];
+
+  if (empty($repository['svn_specific']['auth_username'])) {
+    svnlib_unset_authentication_info();
+  }
+  else {
     svnlib_set_authentication_info(
       $repository['svn_specific']['auth_username'],
       str_rot13($repository['svn_specific']['auth_password'])
@@ -262,6 +270,20 @@ function versioncontrol_svn_get_directory_contents($repository, $directory_item,
     );
   }
   return $items;
+}
+
+/**
+ * Implementation of [versioncontrol_backend]_get_file_copy():
+ * Retrieve a copy of the contents of a given item in the repository.
+ * (You won't get the original because repositories can often be remote.)
+ */
+function versioncontrol_svn_get_file_copy($repository, $file_item, $destination) {
+  _versioncontrol_svn_init_svnlib($repository);
+
+  $success = svnlib_cat($destination,
+    $repository['root'] . $file_item['path'], $file_item['revision']
+  );
+  return $success;
 }
 
 
