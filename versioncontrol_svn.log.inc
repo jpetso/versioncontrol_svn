@@ -39,7 +39,7 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     );
   }
 
-  versioncontrol_svn_init_svnlib($repository);
+  _versioncontrol_svn_init_svnlib($repository);
   $last_revision = $repository['svn_specific']['last_revision'];
 
   $info_items = svnlib_info($repository['root']);
