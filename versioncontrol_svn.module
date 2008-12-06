@@ -72,6 +72,9 @@ function versioncontrol_svn_versioncontrol_backends() {
         // Able to retrieve a file or its revision number based on a global
         // revision identifier.
         VERSIONCONTROL_CAPABILITY_ATOMIC_COMMITS,
+        // The version control system assigns revisions not only to files
+        // but also to directories.
+        VERSIONCONTROL_CAPABILITY_DIRECTORY_REVISIONS,
       ),
 
       // An array listing which tables should be managed by Version Control API
