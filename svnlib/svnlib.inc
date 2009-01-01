@@ -16,6 +16,19 @@
  * Copyright 2006-2008 by Gavin Mogan ("halkeye", http://drupal.org/user/56779)
  */
 
+// file_directory_temp() is normally provided by Drupal, but as this file is
+// supposed to be independent from Drupal code, here's a fallback definition.
+if (!function_exists('file_directory_temp')) {
+  /**
+  * Determine the default temporary directory.
+  *
+  * @return A string containing a temp directory.
+  */
+  function file_directory_temp() {
+    return sys_get_temp_dir();
+  }
+}
+
 /**
  * If subsequent function calls from this file act on a private repository
  * that requires authentication, this function will store username and password
@@ -139,23 +152,17 @@ function _svnlib_set_error_message($tempfiles) {
 
 /**
  * Retrieve the STDERR output from the last invocation of 'svn' that exited
- * with a non-zero status code. This error message will stay the same until it
- * is unset with svnlib_unset_error_message() or a subsequent 'svn' invocation
- * fails as well. If no message is set, this function returns NULL.
+ * with a non-zero status code. After fetching the error message, it will be
+ * unset again until a subsequent 'svn' invocation fails as well. If no message
+ * is set, this function returns NULL.
  *
  * For better security, it is advisable to run the returned error message
  * through check_plain() or similar string checker functions.
  */
 function svnlib_last_error_message() {
-  return _svnlib_error_message();
-}
-
-/**
- * Unset the currently stored error message, in order to free a tiny bit
- * of memory.
- */
-function svnlib_unset_error_message() {
+  $message = _svnlib_error_message();
   _svnlib_error_message(FALSE);
+  return $message;
 }
 
 /**
