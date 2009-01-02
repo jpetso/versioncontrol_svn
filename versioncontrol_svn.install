@@ -71,150 +71,17 @@ function versioncontrol_svn_uninstall() {
 }
 
 
-// Update functions.
+// Update functions. To be named versioncontrol_svn_update_xyzz(), where x is
+// the major version of Drupal core, y is the major version of the CVS backend
+// for this version of Drupal core, and zz is a consecutive number.
+
+// versioncontrol_svn_update_3() was the last update on Drupal 5.x (-2.x).
 
 /**
- * Update 1: New authentication columns that hadn't been considered before.
+ * Update 6100: Blah blah blah.
  */
-function versioncontrol_svn_update_1() {
+/*function versioncontrol_svn_update_6100() {
   $ret = array();
-
-  switch ($GLOBALS['db_type']) {
-    case 'mysqli':
-    case 'mysql':
-      $ret[] = update_sql("ALTER TABLE {versioncontrol_svn_repositories}
-                           ADD COLUMN auth_username varchar(128) NOT NULL default ''
-                           AFTER last_revision");
-      $ret[] = update_sql("ALTER TABLE {versioncontrol_svn_repositories}
-                           ADD COLUMN auth_password varchar(128) NOT NULL default ''
-                           AFTER auth_username");
-      break;
-    case 'pgsql':
-      $ret[] = update_sql("ALTER TABLE {versioncontrol_svn_repositories}
-                           ADD COLUMN auth_username varchar(128) NOT NULL default ''");
-      $ret[] = update_sql("ALTER TABLE {versioncontrol_svn_repositories}
-                           ADD COLUMN auth_password varchar(128) NOT NULL default ''");
-      break;
-  }
+  $ret[] = update_sql('UPDATE {versioncontrol_svn_blah} SET value = othervalue');
   return $ret;
-}
-
-/**
- * Update 2: Version Control API now provides sane constants for item and
- *   action types - starting at 1 instead of 0. So, update the internal
- *   representation.
- */
-function versioncontrol_svn_update_2() {
-  $ret = array();
-  $ret[] = update_sql('UPDATE {versioncontrol_svn_commit_actions}
-                       SET action = action + 1');
-  $ret[] = update_sql('UPDATE {versioncontrol_svn_item_revisions}
-                       SET type = type + 1');
-  return $ret;
-}
-
-/**
- * Update 3: Move commit actions and item revisions to the centralized tables.
- */
-function versioncontrol_svn_update_3() {
-  $ret = array();
-  $items_by_old_id = array();
-
-  $result = db_query("SELECT item_revision_id, repo_id, path, revision, type
-                      FROM {versioncontrol_svn_item_revisions}");
-
-  while ($item = db_fetch_array($result)) {
-    $old_item_revision_id = $item['item_revision_id'];
-    $item['item_revision_id'] = db_next_id('{versioncontrol_item_revisions}_item_revision_id');
-
-    $items_by_old_id[$old_item_revision_id] = $item;
-
-    $ret[] = update_sql(
-      "INSERT INTO {versioncontrol_item_revisions}
-        (item_revision_id, repo_id, path, revision, type)
-        VALUES (". $item['item_revision_id'] .", ". $item['repo_id'] .",
-                '". $item['path'] ."', '". $item['revision'] ."',
-                ". $item['type'] .")"
-      );
-  }
-
-  $result = db_query("SELECT vc_op_id, item_revision_id, action,
-                            source_item_revision_id, replaced_item_revision_id
-                      FROM {versioncontrol_svn_commit_actions}");
-
-  while ($action = db_fetch_array($result)) {
-    $item = $items_by_old_id[$action['item_revision_id']];
-    $source_item_revision_id = 0;
-
-    if ($action['source_item_revision_id'] != 0) {
-      $source_item = $items_by_old_id[$action['source_item_revision_id']];
-      $source_item_revision_id = $source_item['item_revision_id'];
-
-      // New item type semantics (code taken from versioncontrol-backend.inc):
-      // For a "delete" action, make sure the item type is also a "deleted" one.
-      if ($action['action'] == VERSIONCONTROL_ACTION_DELETED) {
-        if ($source_item['type'] == VERSIONCONTROL_ITEM_FILE) {
-          $source_item['type'] = VERSIONCONTROL_ITEM_FILE_DELETED;
-        }
-        else if ($source_item['type'] == VERSIONCONTROL_ITEM_DIRECTORY) {
-          $source_item['type'] = VERSIONCONTROL_ITEM_DIRECTORY_DELETED;
-        }
-        $ret[] = update_sql(
-          "UPDATE {versioncontrol_item_revisions}
-            SET type = ". $source_item['type'] ."
-            WHERE item_revision_id = ". $source_item_revision_id
-        );
-      }
-    }
-
-    $ret[] = update_sql(
-      "INSERT INTO {versioncontrol_source_items}
-        (item_revision_id, source_item_revision_id, action)
-        VALUES (". $item['item_revision_id'] .",
-                ". $source_item_revision_id .",
-                ". $action['action'] .")"
-    );
-
-    if ($action['replaced_item_revision_id'] != 0) {
-      $replaced_item = $items_by_old_id[$action['replaced_item_revision_id']];
-
-      $ret[] = update_sql(
-        "INSERT INTO {versioncontrol_source_items}
-          (item_revision_id, source_item_revision_id, action)
-          VALUES (". $item['item_revision_id'] .",
-                  ". $replaced_item['item_revision_id'] .",
-                  ". VERSIONCONTROL_ACTION_REPLACED .")"
-      );
-    }
-
-    $ret[] = update_sql(
-      "INSERT INTO {versioncontrol_operation_items}
-        (vc_op_id, item_revision_id, type)
-        VALUES (". $action['vc_op_id'] .", ". $item['item_revision_id'] .",
-                ". VERSIONCONTROL_OPERATION_MEMBER_ITEM .")"
-    );
-
-    // Cache other important items in the operations table for 'path' search
-    // queries, because joining the source revisions table is too expensive.
-    // (Code taken from versioncontrol_insert_operation().)
-    if ($source_item_revision_id != 0) {
-      switch ($item['action']) {
-        case VERSIONCONTROL_ACTION_MOVED:
-        case VERSIONCONTROL_ACTION_COPIED:
-        case VERSIONCONTROL_ACTION_MERGED:
-          if ($item['path'] != $source_item['path']) {
-            _versioncontrol_insert_operation_item($operation,
-              $source_item, VERSIONCONTROL_OPERATION_CACHED_AFFECTED_ITEM);
-          }
-          break;
-        default: // No additional caching for added, modified or deleted items.
-          break;
-      }
-    }
-  }
-
-  // Those tables are not needed anymore now. Way to go!
-  $ret[] = update_sql("DROP TABLE {versioncontrol_svn_commit_actions}");
-  $ret[] = update_sql("DROP TABLE {versioncontrol_svn_item_revisions}");
-  return $ret;
-}
+}*/
