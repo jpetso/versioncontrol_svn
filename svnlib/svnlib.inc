@@ -593,6 +593,8 @@ function _svnlib_parse_info($info, $recursive) {
  * This function is equivalent to
  * 'svn cat $repository_url@$url_revision > $destination'.
  *
+ * @param $destination
+ *   The path of the file that should afterwards contain the file contents.
  * @param $repository_url
  *   The URL of the file, e.g. 'file:///svnroot/my-repo/subdir/hello.php'.
  * @param $url_revision
@@ -620,7 +622,7 @@ function svnlib_cat($destination, $repository_url, $url_revision = 'HEAD') {
   if ($return_code != 0) {
     @unlink($destination);
     _svnlib_set_error_message($tempfiles);
-    return NULL; // no such item or revision found
+    return FALSE; // no such item or revision found
   }
   _svnlib_delete_temporary_files($tempfiles);
   return TRUE;
