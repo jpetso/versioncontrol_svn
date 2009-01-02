@@ -113,7 +113,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
     }
     else {
       if (defined('SVNLIB_DEBUG')) {
-        fwrite(STDERR, "Revision $revision[rev]: Retrieved 'M' info items not complete!\nFalling back to one-by-one retrieval.");
+        fwrite(STDERR, "Revision $revision[rev]: Retrieved 'M' info items not complete! Falling back to one-by-one retrieval.\n");
       }
     }
 
@@ -178,7 +178,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
       }
 
       // The hard part is 'D'. There are two possible cases...
-      if ($action['action'] == 'D') {
+      if ($actions[$path]['action'] == 'D') {
         // a) The item existed in that place before it was deleted. Cool.
         $source_items = svnlib_info_cached($actions[$path]['url'], $revision['rev'] - 1);
         if ($source_items) {
@@ -239,6 +239,18 @@ function svnlib_more_log_info($revisions, $repository_root) {
         }
         $actions[$path] = $original_action;
 
+        // If the copy/move action heuristics and the delete action heuristics
+        // retrieve the same item, then we've got the rare special case that
+        // the parent directory has been copied to a new location where the
+        // old copied item was swapped against a new one. (Yeah, happens.)
+        // Same item as 'source_item' and 'replaced_item' is bad, so guard
+        // against this.
+        if ($actions[$path]['source_item']['path'] == $actions[$path]['replaced_item']['path']
+            && $actions[$path]['source_item']['rev'] == $actions[$path]['replaced_item']['rev']) {
+          $actions[$path]['action'] = 'A';
+          unset($actions[$path]['source_item']);
+        }
+
         // Cleaning up properties that should not be included in the result.
         unset($actions[$path]['replaced']);
       }
@@ -261,7 +273,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
  * Like, really slow. Let's try to make it faster by not calling svn_info()
  * more than once for each item if we know that the result is the same.
  * In order to be able to implement this optimization, we assume that
- * a) svn_info() is not called with $recursive = TRUE, and
+ * a) svn_info() is not called in any of the recursive modes, and
  * b) revisions are given as fixed revision numbers, i.e. not 'HEAD'.
  */
 function svnlib_info_cached($repository_urls, $url_revision, $target_revision = NULL) {
@@ -298,10 +310,10 @@ function svnlib_info_cached($repository_urls, $url_revision, $target_revision = 
     return $result_items; // nothing left to be done, yay
   }
 
-  $items = svnlib_info($queried_urls, $url_revision, $recursive, $target_revision);
+  $items = svnlib_info($queried_urls, $url_revision, 'empty', $target_revision);
 
   if (!isset($items)) {
-    return NULL;
+    return array();
   }
   foreach ($items as $item) {
     _svnlib_item_cache($item, $target_revision);

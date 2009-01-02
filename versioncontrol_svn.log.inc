@@ -39,12 +39,7 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     );
   }
 
-  if (!empty($repository['svn_specific']['auth_username'])) {
-    svnlib_set_authentication_info(
-      $repository['svn_specific']['auth_username'],
-      str_rot13($repository['svn_specific']['auth_password'])
-    );
-  }
+  _versioncontrol_svn_init_svnlib($repository);
   $last_revision = $repository['svn_specific']['last_revision'];
 
   $info_items = svnlib_info($repository['root']);
@@ -80,54 +75,49 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
   }
 
   foreach ($revisions as $rev_id => $revision) { // processing the oldest revision first
-    $commit = array(
+    $operation = array(
+      'type' => VERSIONCONTROL_OPERATION_COMMIT,
       'repository' => $repository,
       'date' => $revision['time_t'],
       'username' => $revision['author'],
       'message' => $revision['msg'],
       'revision' => (string) $rev_id,
-      'svn_specific' => array(),
+      'labels' => array(), // no branch/tag emulation support yet
     );
-    if (empty($commit['username'])) { // commit inserted by cvs2svn, for example
-      $commit['username'] = '(no author)';
-      $commit['uid'] = 0;
+    if (empty($operation['username'])) { // commit inserted by cvs2svn, for example
+      $operation['username'] = '(no author)';
+      $operation['uid'] = 0;
     }
-    $commit_actions = array();
+    $operation_items = array();
 
     foreach ($revision['actions'] as $path => $rev_action) {
-      $commit_action = array(
+      $item = array(
+        'type' => $svnlib_mapping['types'][$rev_action['current_item']['type']],
+        'path' => $rev_action['current_item']['path'],
+        'revision' => (string) $rev_action['current_item']['rev'],
         'action' => $svnlib_mapping['actions'][$rev_action['action']],
-        'current item' => array(
-          'type' => $svnlib_mapping['types'][$rev_action['current_item']['type']],
-          'path' => $rev_action['current_item']['path'],
-          'revision' => (string) $rev_action['current_item']['rev'],
-          'svn_specific' => array(),
-        ),
+        'source_items' => array(),
       );
       if (isset($rev_action['source_item'])) {
-        $commit_action['source items'] = array(
-          array(
-            'type' => $svnlib_mapping['types'][$rev_action['source_item']['type']],
-            'path' => $rev_action['source_item']['path'],
-            'revision' => (string) $rev_action['source_item']['rev'],
-            'svn_specific' => array(),
-          ),
+        $item['source_items'][] = array(
+          'type' => $svnlib_mapping['types'][$rev_action['source_item']['type']],
+          'path' => $rev_action['source_item']['path'],
+          'revision' => (string) $rev_action['source_item']['rev'],
         );
       }
       if (isset($rev_action['replaced_item'])) {
-        $commit_action['replaced item'] = array(
+        $item['replaced_item'] = array(
           'type' => $svnlib_mapping['types'][$rev_action['replaced_item']['type']],
           'path' => $rev_action['replaced_item']['path'],
           'revision' => (string) $rev_action['replaced_item']['rev'],
-          'svn_specific' => array(),
         );
       }
-      $commit_actions[$commit_action['current item']['path']] = $commit_action;
+      $operation_items[$item['path']] = $item;
     }
 
     // Now that was easy, wasn't it? :P
-    $commit = versioncontrol_insert_commit($commit, $commit_actions);
-    if (isset($commit) && $rev_id > $last_revision) {
+    $operation = versioncontrol_insert_operation($operation, $operation_items);
+    if (isset($operation) && $rev_id > $last_revision) {
       $last_revision = $rev_id;
     }
   }

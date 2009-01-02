@@ -16,6 +16,19 @@
  * Copyright 2006-2008 by Gavin Mogan ("halkeye", http://drupal.org/user/56779)
  */
 
+// file_directory_temp() is normally provided by Drupal, but as this file is
+// supposed to be independent from Drupal code, here's a fallback definition.
+if (!function_exists('file_directory_temp')) {
+  /**
+  * Determine the default temporary directory.
+  *
+  * @return A string containing a temp directory.
+  */
+  function file_directory_temp() {
+    return sys_get_temp_dir();
+  }
+}
+
 /**
  * If subsequent function calls from this file act on a private repository
  * that requires authentication, this function will store username and password
@@ -139,23 +152,17 @@ function _svnlib_set_error_message($tempfiles) {
 
 /**
  * Retrieve the STDERR output from the last invocation of 'svn' that exited
- * with a non-zero status code. This error message will stay the same until it
- * is unset with svnlib_unset_error_message() or a subsequent 'svn' invocation
- * fails as well. If no message is set, this function returns NULL.
+ * with a non-zero status code. After fetching the error message, it will be
+ * unset again until a subsequent 'svn' invocation fails as well. If no message
+ * is set, this function returns NULL.
  *
  * For better security, it is advisable to run the returned error message
  * through check_plain() or similar string checker functions.
  */
 function svnlib_last_error_message() {
-  return _svnlib_error_message();
-}
-
-/**
- * Unset the currently stored error message, in order to free a tiny bit
- * of memory.
- */
-function svnlib_unset_error_message() {
+  $message = _svnlib_error_message();
   _svnlib_error_message(FALSE);
+  return $message;
 }
 
 /**
@@ -407,7 +414,7 @@ function _svnlib_parse_ls($lists, $recursive) {
 
 /**
  * Returns detail information about a directory or file item in the repository.
- * In many cases, svnlib_info() is the better svnlib_ls(), as it retrieves not
+ * In most cases, svnlib_info() is the better svnlib_ls(), as it retrieves not
  * only item names but also repository root and the path of each item
  * inside the repository.
  *
@@ -429,11 +436,14 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   For example, if a file was deleted in revision 36, you need to pass '35'
  *   as parameter to get its info, otherwise Subversion won't find the file.
  *   In case multiple URLs are passed, this revision applies to each of them.
- * @param $recursive
- *   FALSE to retrieve the information for just the specified URL(s),
- *   or TRUE to retrieve all descendant items as well. If $recursive is TRUE
- *   then each directory item in the result array will have an additional
- *   array element 'children' which contains the list entries below
+ * @param $depth
+ *   Specifies if info for descendant items should be retrieved as well, and
+ *   if so, which of those. The default 'empty' will not retrieve any children,
+ *   'files' will retrieve all immediate file children, 'immediates' will
+ *   retrieve file and directory children, and 'infinity' will retrieve all
+ *   descendant items there are, recursively. If $depth is something else
+ *   than 'empty' then each directory item in the result array will have an
+ *   additional array element 'children' which contains the list entries below
  *   this directory, as array keys in the result array.
  *
  *   If @p $repository_url refers to a file then the @p $recursive parameter
@@ -456,7 +466,7 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   returns NULL and the error message can be retrieved by calling
  *   svnlib_last_error_message().
  */
-function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALSE, $target_revision = NULL) {
+function svnlib_info($repository_urls, $url_revision = 'HEAD', $depth = 'empty', $target_revision = NULL) {
   if (!is_array($repository_urls)) { // it's a single URL as a string!
     $repository_urls = array($repository_urls);
   }
@@ -466,13 +476,11 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $recursive = FALS
     'info',
     '--non-interactive',
     '--xml',
+    '--depth', $depth,
   );
   if (isset($target_revision)) {
     $cmd[] = '-r';
     $cmd[] = $target_revision;
-  }
-  if ($recursive) {
-    $cmd[] = '-R';
   }
   _svnlib_add_common_options($cmd);
   foreach ($repository_urls as $repository_url) {
@@ -577,4 +585,92 @@ function _svnlib_parse_info($info, $recursive) {
     $items[$item['path']] = $item;
   }
   return $items;
+}
+
+
+/**
+ * Copy the contents of a file in a repository to a given destination.
+ * This function is equivalent to
+ * 'svn cat $repository_url@$url_revision > $destination'.
+ *
+ * @param $destination
+ *   The path of the file that should afterwards contain the file contents.
+ * @param $repository_url
+ *   The URL of the file, e.g. 'file:///svnroot/my-repo/subdir/hello.php'.
+ * @param $url_revision
+ *   The revision of the URL that should be queried for the property.
+ *   This needs to be a single revision, e.g. '35' or 'HEAD'.
+ *
+ * @return
+ *   TRUE if the file was created successfully. If the 'svn cat' invocation
+ *   exited with an error, this function returns FALSE and the error message
+ *   can be retrieved by calling svnlib_last_error_message().
+ */
+function svnlib_cat($destination, $repository_url, $url_revision = 'HEAD') {
+  $cmd = array(
+    escapeshellarg(escapeshellcmd(_svnlib_svn_binary())),
+    'cat',
+    '--non-interactive',
+  );
+  _svnlib_add_common_options($cmd);
+  $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
+  $cmd[] = '> '. $destination;
+  $tempfiles = _svnlib_add_output_pipes($cmd);
+
+  $return_code = 0;
+  exec(implode(' ', $cmd), $output, $return_code);
+  if ($return_code != 0) {
+    @unlink($destination);
+    _svnlib_set_error_message($tempfiles);
+    return FALSE; // no such item or revision found
+  }
+  _svnlib_delete_temporary_files($tempfiles);
+  return TRUE;
+}
+
+/**
+ * Return a specific SVN property of the given file or directory in the
+ * repository. This function is equivalent to
+ * 'svn propget $property_name $repository_url@$url_revision'.
+ *
+ * @param $property_name
+ *   The name of the property, e.g. 'svn:mime-type' or 'svn:executable'.
+ * @param $repository_url
+ *   The URL of the item (e.g. 'file:///svnroot/my-repo/subdir/hello.php')
+ *   or the repository itself (e.g. 'file:///svnroot/my-repo'), as string.
+ * @param $url_revision
+ *   The revision of the URL that should be queried for the property.
+ *   This needs to be a single revision, e.g. '35' or 'HEAD'.
+ *
+ * @return
+ *   A string containing the specified property for the item in the given
+ *   revision, an empty string if this property is not set. If the
+ *   'svn propget' invocation exited with an error, this function
+ *   returns NULL and the error message can be retrieved by calling
+ *   svnlib_last_error_message().
+ */
+function svnlib_propget($property_name, $repository_url, $url_revision = 'HEAD') {
+  $cmd = array(
+    escapeshellarg(escapeshellcmd(_svnlib_svn_binary())),
+    'propget',
+    $property_name,
+    '--non-interactive',
+  );
+  _svnlib_add_common_options($cmd);
+  $cmd[] = escapeshellarg($repository_url .'@'. $url_revision);
+  $tempfiles = _svnlib_add_output_pipes($cmd);
+
+  $return_code = 0;
+  exec(implode(' ', $cmd), $output, $return_code);
+  if ($return_code != 0) {
+    _svnlib_set_error_message($tempfiles);
+    return NULL; // no such item or revision found
+  }
+  $property = trim(implode('', $output));
+  _svnlib_delete_temporary_files($tempfiles);
+
+  if (empty($property)) {
+    return '';
+  }
+  return $property;
 }

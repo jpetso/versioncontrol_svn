@@ -8,17 +8,9 @@
  * Copyright 2007, 2008 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
  */
 
-// Server types.
-// For the repository settings' "Allowed server types" for accounts, this is
-// a flag where allowed values are combined with the bitwise or ("|")operator,
-// and can be deassembled with the bitwise and ("&").
-define('VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV', 1); // Apache with mod_dav_svn (http(s)://)
-define('VERSIONCONTROL_SVN_SERVER_SVNSERVE',      2); // Plain svnserve (svn://)
-define('VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH',  4); // svnserve over SSH (svn+ssh://)
-
 // Update methods.
-define('VERSIONCONTROL_SVN_UPDATE_CRON',          1);
-define('VERSIONCONTROL_SVN_UPDATE_XSVN',          2);
+define('VERSIONCONTROL_SVN_UPDATE_CRON', 1);
+define('VERSIONCONTROL_SVN_UPDATE_XSVN', 2);
 
 // The admin and user edit pages.
 include_once(drupal_get_path('module', 'versioncontrol_svn') .'/versioncontrol_svn.forms.inc');
@@ -72,6 +64,9 @@ function versioncontrol_svn_versioncontrol_backends() {
         // Able to retrieve a file or its revision number based on a global
         // revision identifier.
         VERSIONCONTROL_CAPABILITY_ATOMIC_COMMITS,
+        // The version control system assigns revisions not only to files
+        // but also to directories.
+        VERSIONCONTROL_CAPABILITY_DIRECTORY_REVISIONS,
       ),
 
       // An array listing which tables should be managed by Version Control API
@@ -130,302 +125,138 @@ function versioncontrol_svn_cron() {
 
 
 /**
- * Get the list of allowed server types for the given repository
- * that new accounts can choose from. Essentially, this function decodes
- * the integer number that is stored in the database to a comfortable array.
- *
- * @param $repository
- *   The repository array, as returned by versioncontrol_get_repository().
- *   May also be NULL, in which case an empty array will be returned.
- *
- * @return
- *   An array containing any combination (but at least one) of the
- *   server type constants VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV,
- *   VERSIONCONTROL_SVN_SERVER_SVNSERVE and VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH.
+ * Implementation of [versioncontrol_backend]_format_revision_identifier():
+ * Get the user-visible version of a commit identifier a.k.a. 'revision',
+ * as plaintext.
  */
-function versioncontrol_svn_get_allowed_serving_methods($repository = NULL) {
-  if (!isset($repository['svn_specific']['allowed_serving_methods'])) {
-    return array();
-  }
-
-  $server_types = array(
-    VERSIONCONTROL_SVN_SERVER_APACHE_WEBDAV,
-    VERSIONCONTROL_SVN_SERVER_SVNSERVE,
-    VERSIONCONTROL_SVN_SERVER_SVNSERVE_SSH,
-  );
-  $allowed_types_binary = $repository['svn_specific']['allowed_serving_methods'];
-  $allowed_types_array = array();
-
-  foreach ($server_types as $mask) {
-    if (($allowed_types_binary & $mask) != 0) {
-      $allowed_types_array[] = $mask;
-    }
-  }
-  return $allowed_types_array;
-}
-
-
-/**
- * Implementation of [versioncontrol_backend]_commit():
- * Manage (insert or delete) additional commit data in the database.
- */
-function versioncontrol_svn_commit($op, $commit, $commit_actions) {
-  switch ($op) {
-    case 'insert':
-      foreach ($commit_actions as $path => $action) {
-        // Default values in case source and/or replaced items don't exist.
-        $source_item_revision_id = 0;
-        $replaced_item_revision_id = 0;
-
-        // Preparation: store the new item in the database.
-        $action['current item'] = _versioncontrol_svn_insert_item_revision(
-          $commit['repository'], $action['current item']
-        );
-
-        // Get item revision ids of source and replaced item (if those exist)
-        // and create them if the database doesn't already have entries.
-        if (isset($action['source items'][0])) {
-          $action['source items'][0] = _versioncontrol_svn_ensure_item_revision(
-            $commit['repository'], $action['source items'][0]
-          );
-          $source_item_revision_id = $action['source items'][0]['svn_specific']['item_revision_id'];
-        }
-        if (isset($action['replaced item'])) {
-          $action['replaced item'] = _versioncontrol_svn_ensure_item_revision(
-            $commit['repository'], $action['replaced item']
-          );
-          $replaced_item_revision_id = $action['replaced item']['svn_specific']['item_revision_id'];
-        }
-
-        // All information gathered, insert it into the database!
-        db_query(
-          "INSERT INTO {versioncontrol_svn_commit_actions}
-            (vc_op_id, item_revision_id, action, source_item_revision_id, replaced_item_revision_id)
-            VALUES (%d, %d, %d, %d, %d)",
-            $commit['vc_op_id'], $action['current item']['svn_specific']['item_revision_id'],
-            $action['action'], $source_item_revision_id, $replaced_item_revision_id
-        );
-      }
-      break;
-
-    case 'delete':
-      db_query('DELETE FROM {versioncontrol_svn_commit_actions}
-                WHERE vc_op_id = %d', $commit['vc_op_id']);
-      break;
+function versioncontrol_svn_format_revision_identifier($operation, $format = 'full') {
+  switch ($format) {
+    case 'full':
+    case 'short':
+    default:
+      return 'r'. $operation['revision'];
   }
 }
 
 /**
- * Implementation of [versioncontrol_backend]_get_commit_actions():
- * Retrieve detailed information about what happened in a single commit.
+ * Implementation of [versioncontrol_backend]_get_selected_operation_item_label():
+ * Retrieve the tag or branch that applied to that item during the given
+ * operation. The result of this function will be used for the 'selected_label'
+ * property of each item, which is necessary to provide a starting point for
+ * branch and tag navigation.
  */
-function versioncontrol_svn_get_commit_actions($commit) {
-  $commit_actions = array();
-  $result = db_query(
-    'SELECT item_revision_id, action, source_item_revision_id, replaced_item_revision_id
-     FROM {versioncontrol_svn_commit_actions}
-     WHERE vc_op_id = %d', $commit['vc_op_id']);
+function versioncontrol_svn_get_selected_label_from_operation($operation, $target_item) {
+  // No branch/tag support yet, might be implemented in the future.
+  return NULL;
+}
 
-  while ($item_revision = db_fetch_object($result)) {
-    $action = array('action' => $item_revision->action);
+/**
+ * Implementation of [versioncontrol_backend]_get_selected_label_from_other_item():
+ * Retrieve a valid label (tag or branch) for a new @p $target_item that is
+ * (hopefully) similar or related to that of the given @p $other_item which
+ * already has a selected label assigned. If the backend cannot find a related
+ * label, return any valid label. The result of this function will be used for
+ * the selected label property of each item, which is necessary to preserve the
+ * item state throughout navigational API functions.
+ */
+function versioncontrol_svn_get_selected_label_from_other_item($repository, $target_item, &$other_item, $other_item_tags = array()) {
+  // No branch/tag support yet, might be implemented in the future.
+  return NULL;
+}
 
-    $item_revision_ids = array(
-      $item_revision->item_revision_id,
-      $item_revision->source_item_revision_id,
-      $item_revision->replaced_item_revision_id,
+
+/**
+ * Include the svnlib.inc helper library and initialize persistent
+ * repository settings that will be reused in later svnlib function calls.
+ */
+function _versioncontrol_svn_init_svnlib($repository) {
+  static $current_repo_id;
+
+  if (!isset($current_repo_id)) {
+    include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib.inc');
+  }
+  $current_repo_id = $repository['repo_id'];
+
+  if (empty($repository['svn_specific']['auth_username'])) {
+    svnlib_unset_authentication_info();
+  }
+  else {
+    svnlib_set_authentication_info(
+      $repository['svn_specific']['auth_username'],
+      str_rot13($repository['svn_specific']['auth_password'])
     );
-    $items = _versioncontrol_svn_get_item_revisions_by_id($item_revision_ids);
-    if (isset($items[$item_revision->item_revision_id])) {
-      $action['current item'] = $items[$item_revision->item_revision_id];
-    }
-    if (isset($items[$item_revision->source_item_revision_id])) {
-      $action['source items'] = array(
-        $items[$item_revision->source_item_revision_id]
-      );
-    }
-    if (isset($items[$item_revision->replaced_item_revision_id])) {
-      $action['replaced item'] = $items[$item_revision->replaced_item_revision_id];
-    }
-
-    $commit_actions[$action['current item']['path']] = $action;
   }
-  return $commit_actions;
 }
 
-function _versioncontrol_svn_get_item_revisions_by_id($item_revision_ids) {
-  $item_revision_ids = array_filter($item_revision_ids);
-  if (empty($item_revision_ids)) {
-    return array();
+/**
+ * Implementation of [versioncontrol_backend]_get_item():
+ * Try to retrieve a given item in a repository.
+ */
+function versioncontrol_svn_get_item($repository, $path, $revision = '') {
+  _versioncontrol_svn_init_svnlib($repository);
+
+  if (empty($revision)) {
+    $revision = 'HEAD';
+  }
+  $info = svnlib_info($repository['root'] . $path, $revision);
+  if (!isset($info[$path])) {
+    return NULL;
   }
 
-  $placeholders = array();
-  foreach ($item_revision_ids as $id) {
-    $placeholders[] = '%d';
-  }
-  $result = db_query(
-    'SELECT item_revision_id, path, revision, type
-     FROM {versioncontrol_svn_item_revisions}
-     WHERE item_revision_id IN ('. implode(',', $placeholders) .')',
-    $item_revision_ids
+  $item = array(
+    'path' => $info[$path]['path'],
+    'revision' => $info[$path]['created_rev'],
+    'type' => ($info[$path]['type'] == 'dir')
+              ? VERSIONCONTROL_ITEM_DIRECTORY
+              : VERSIONCONTROL_ITEM_FILE,
   );
+  return array('item' => $item, 'selected_label' => NULL);
+}
+
+/**
+ * Implementation of [versioncontrol_backend]_get_directory_contents():
+ * Retrieve the set of files and directories that exist at a specified revision
+ * in the given directory inside the repository.
+ */
+function versioncontrol_svn_get_directory_contents($repository, $directory_item, $recursive = FALSE) {
+  _versioncontrol_svn_init_svnlib($repository);
+
+  $contents = svnlib_info(
+    $repository['root'] . $directory_item['path'], $directory_item['revision'],
+    $recursive ? 'infinite' : 'immediates'
+  );
+  if (empty($contents)) {
+    return NULL;
+  }
   $items = array();
 
-  while ($item_revision = db_fetch_object($result)) {
-    $items[$item_revision->item_revision_id] = array(
-      'path' => $item_revision->path,
-      'revision' => $item_revision->revision,
-      'type' => $item_revision->type,
-      'svn_specific' => array(
-        'item_revision_id' => $item_revision->item_revision_id,
+  foreach ($contents as $path => $item_info) {
+    $items[$path] = array(
+      'item' => array(
+        'path' => $item_info['path'],
+        'revision' => $item_info['created_rev'],
+        'type' => ($item_info['type'] == 'dir')
+                  ? VERSIONCONTROL_ITEM_DIRECTORY
+                  : VERSIONCONTROL_ITEM_FILE,
       ),
+      'selected_label' => NULL,
     );
   }
   return $items;
 }
 
-function _versioncontrol_svn_ensure_item_revision($repository, $item) {
-  $result = db_query(
-    "SELECT item_revision_id, type
-     FROM {versioncontrol_svn_item_revisions}
-     WHERE repo_id = %d AND path = '%s' AND revision = '%s'",
-    $repository['repo_id'], $item['path'], $item['revision']
+/**
+ * Implementation of [versioncontrol_backend]_get_file_copy():
+ * Retrieve a copy of the contents of a given item in the repository.
+ * (You won't get the original because repositories can often be remote.)
+ */
+function versioncontrol_svn_get_file_copy($repository, $file_item, $destination) {
+  _versioncontrol_svn_init_svnlib($repository);
+
+  $success = svnlib_cat($destination,
+    $repository['root'] . $file_item['path'], $file_item['revision']
   );
-  while ($item_revision = db_fetch_object($result)) {
-    // Replace / fill in properties that were not in the WHERE condition.
-    $item['type'] = $item_revision->type;
-    $item['svn_specific']['item_revision_id'] = $item_revision->item_revision_id;
-  }
-  // The item doesn't yet exist in the database, so create it.
-  return _versioncontrol_svn_insert_item_revision($repository, $item);
-}
-
-function _versioncontrol_svn_insert_item_revision($repository, $item) {
-  $item_revision_id = db_next_id('{versioncontrol_svn_item_revisions}_item_revision_id');
-  db_query(
-    "INSERT INTO {versioncontrol_svn_item_revisions}
-      (item_revision_id, repo_id, path, revision, type)
-      VALUES (%d, %d, '%s', '%s', %d)",
-    $item_revision_id, $repository['repo_id'], $item['path'],
-    $item['revision'], $item['type']
-  );
-  $item['svn_specific']['item_revision_id'] = $item_revision_id;
-  return $item;
-}
-
-
-/**
- * Implementation of [versioncontrol_backend]_get_directory_item():
- * Retrieve the item of the deepest-level directory in the repository that is
- * common to all the changed/branched/tagged items in a commit,
- * branch operation or tag operation. In other words, this function
- * gets you the item for $operation['directory'].
- */
-function versioncontrol_svn_get_directory_item($operation) {
-  return array(
-    'type' => VERSIONCONTROL_ITEM_DIRECTORY,
-    'path' => $operation['directory'],
-    'revision' => $operation['revision'],
-    'svn_specific' => array(),
-  );
-}
-
-/**
- * Implementation of [versioncontrol_backend]_get_commit_branches():
- * Retrieve the branches that have been affected by the given commit.
- */
-function versioncontrol_svn_get_commit_branches($commit) {
-  return array(); // no branch emulation for now, might follow later on
-}
-
-/**
- * Implementation of [versioncontrol_backend]_get_branched_items():
- * Retrieve the set of items that were affected by a branch operation.
- */
-function versioncontrol_svn_get_branched_items($branch) {
-  return array(); // no branch emulation for now, might follow later on
-}
-
-/**
- * Implementation of [versioncontrol_backend]_get_tagged_items():
- * Retrieve the set of items that were affected by a tag operation.
- */
-function versioncontrol_svn_get_tagged_items($tag) {
-  return array(); // no tag emulation for now, might follow later on
-}
-
-/**
- * Implementation of [versioncontrol_backend]_get_current_item_branch():
- * Retrieve the current branch that this item is in.
- */
-function versioncontrol_svn_get_current_item_branch($repository, $item) {
-  return NULL; // no branch emulation for now, might follow later on
-}
-
-/**
- * Implementation of [versioncontrol_backend]_get_current_item_tag():
- * Retrieve the current tag that has been applied to this item.
- */
-function versioncontrol_svn_get_current_item_tag($repository, $item) {
-  return NULL; // no tag emulation for now, might follow later on
-}
-
-
-/**
- * Implementation of [versioncontrol_backend]_repository():
- * Delete additional Subversion repository data from the database.
- */
-function versioncontrol_svn_repository($op, $repository) {
-  if ($op == 'delete') {
-    db_query('DELETE FROM {versioncontrol_svn_item_revisions}
-              WHERE repo_id = %d', $repository['repo_id']);
-  }
-}
-
-/**
- * Implementation of [versioncontrol_backend]_account():
- * Manage (insert, update or delete) additional SVN user account data
- * in the database.
- */
-function versioncontrol_svn_account($op, $uid, $username, $repository, $additional_data = array()) {
-  $svn_specific = $additional_data['svn_specific'];
-
-  switch ($op) {
-    case 'insert':
-      if (!isset($svn_specific) || !isset($svn_specific['password'])) {
-        drupal_set_message(t('Error: no SVN password given on account creation!'), 'error');
-        return;
-      }
-      db_query("INSERT INTO {versioncontrol_svn_accounts}
-                (uid, repo_id, password, serving_method)
-                VALUES (%d, %d, '%s', %d)",
-                $uid, $repository['repo_id'],
-                $svn_specific['password'], $svn_specific['serving_method']);
-      break;
-
-    case 'update':
-      if (!isset($svn_specific) || !isset($svn_specific['password'])) {
-        // the user didn't update the password
-        // (and neither the serving method, as a consequence).
-        return;
-      }
-      db_query("UPDATE {versioncontrol_svn_accounts}
-                SET password = '%s', serving_method = %d
-                WHERE uid = %d AND repo_id = %d",
-                $svn_specific['password'], $svn_specific['serving_method'],
-                $uid, $repository['repo_id']);
-
-      if (!user_access('administer version control systems')) {
-        // Admins get "The account has been updated successfully" anyways.
-        drupal_set_message(t('The SVN password has been updated successfully.'));
-      }
-      break;
-
-    case 'delete':
-      db_query("DELETE FROM {versioncontrol_svn_accounts}
-                WHERE uid = %d AND repo_id = %d",
-                $uid, $repository['repo_id']);
-      break;
-  }
+  return $success;
 }
 
 
