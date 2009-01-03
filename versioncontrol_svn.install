@@ -101,7 +101,6 @@ function versioncontrol_svn_install() {
   drupal_install_schema('versioncontrol_svn');
 }
 
-
 /**
  * Implementation of hook_uninstall().
  */
