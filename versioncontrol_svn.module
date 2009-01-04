@@ -93,7 +93,7 @@ function versioncontrol_svn_menu() {
     'title' => 'Fetch log',
     'page callback' => 'versioncontrol_svn_update_repository_callback',
     'page arguments' => array(5),
-    'access arguments' => array('administer version control systems'),
+    'access callback' => 'versioncontrol_admin_access',
     'type' => MENU_CALLBACK,
   );
   return $items;
