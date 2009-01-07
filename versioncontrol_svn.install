@@ -16,17 +16,18 @@
  */
 function versioncontrol_svn_schema() {
   $schema['versioncontrol_svn_repositories'] = array(
-    'description' => t('This table extends {versioncontrol_repositories} with additional properties specific to SVN repositories.'),
+    'description' => 'This table extends {versioncontrol_repositories} with additional properties specific to SVN repositories.',
     'fields' => array(
       'repo_id' => array(
-        'description' => t('The repository identifier referring to {versioncontrol_repositories}.repo_id.'),
+        'description' => 'The repository identifier referring to {versioncontrol_repositories}.repo_id.',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
       ),
       'update_method' => array(
-        'description' => t('Specifies whether the repository is updated via log parsing on cron runs (VERSIONCONTROL_SVN_UPDATE_CRON) or via hook scripts (VERSIONCONTROL_SVN_UPDATE_XSVN). Updating the repository and fetching new revisions into the database are the same thing, by the way.'),
+        'description' =>
+          'Specifies whether the repository is updated via log parsing on cron runs (VERSIONCONTROL_SVN_UPDATE_CRON) or via hook scripts (VERSIONCONTROL_SVN_UPDATE_XSVN). Updating the repository and fetching new revisions into the database are the same thing, by the way.',
         'type' => 'int',
         'size' => 'tiny',
         'unsigned' => TRUE,
@@ -34,53 +35,52 @@ function versioncontrol_svn_schema() {
         'default' => 0,
       ),
       'updated' => array(
-        'description' => t('Date/time when the repository was last updated, as Unix timestamp. Unlike the CVS backend, the SVN backend uses this property only for displaying purposes, so it is not required for log parsing. 0 if the repository has never been updated at all.'),
+        'description' =>
+          'Date/time when the repository was last updated, as Unix timestamp. Unlike the CVS backend, the SVN backend uses this property only for displaying purposes, so it is not required for log parsing. 0 if the repository has never been updated at all.',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
       ),
       'last_revision' => array(
-        'description' => t('The last revision that was recorded for the repository. 0 if the repository has never been updated at all (and no revisions have yet been recorded).'),
+        'description' => 'The last revision that was recorded for the repository. 0 if the repository has never been updated at all (and no revisions have yet been recorded).',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
       ),
       'auth_username' => array(
-        'description' => t('Empty if the repository is accessed anonymously, or the login username if credentials are being supplied.'),
+        'description' => 'Empty if the repository is accessed anonymously, or the login username if credentials are being supplied.',
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
       ),
       'auth_password' => array(
-        'description' => t('Empty if the repository is accessed anonymously, or the login password if credentials are being supplied.'),
+        'description' => 'Empty if the repository is accessed anonymously, or the login password if credentials are being supplied.',
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
       ),
       'path_trunk' => array(
-        'description' => t('The path of the trunk directory (often "/trunk"), for branch emulation purposes.'),
+        'description' => 'The path of the trunk directory (often "/trunk"), for branch emulation purposes.',
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
       ),
       'path_branches' => array(
-        'description' => t(
-          'The path of the branches directory (e.g. "/branches/%project/%branch"), for branch emulation purposes. "%project" is a placeholder for the project\'s short name and "%branch" holds the name of the branch itself.'
-        ),
+        'description' =>
+          'The path of the branches directory (e.g. "/branches/%project/%branch"), for branch emulation purposes. "%project" is a placeholder for the project\'s short name and "%branch" holds the name of the branch itself.',
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
         'default' => '',
       ),
       'path_tags' => array(
-        'description' => t(
-          'The path of the tags directory (e.g. "/tags/%project/%branch/%tag"), for tag emulation purposes. "%project" is a placeholder for the project\'s short name, "%branch" optionally denotes a branch specific directory part (but may be left out), and "%tag" holds the name of the tag itself.'
-        ),
+        'description' =>
+          'The path of the tags directory (e.g. "/tags/%project/%branch/%tag"), for tag emulation purposes. "%project" is a placeholder for the project\'s short name, "%branch" optionally denotes a branch specific directory part (but may be left out), and "%tag" holds the name of the tag itself.',
         'type' => 'varchar',
         'length' => 128,
         'not null' => TRUE,
