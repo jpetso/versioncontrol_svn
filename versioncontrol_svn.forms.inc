@@ -197,9 +197,9 @@ function versioncontrol_svn_versioncontrol_alter_repository_list($vcs, $reposito
       ));
       $rows_by_repo_id[$repo_id][] = $repositories[$repo_id]['svn_specific']['updated']
         ? t('!date (r!revision)', array(
-             '!date' => format_date($repositories[$repo_id]['svn_specific']['updated'], 'small'),
-             '!revision' => $repositories[$repo_id]['svn_specific']['last_revision'],
-           ))
+            '!date' => format_date($repositories[$repo_id]['svn_specific']['updated'], 'small'),
+            '!revision' => $repositories[$repo_id]['svn_specific']['last_revision'],
+          ))
         : t('never');
     }
   }

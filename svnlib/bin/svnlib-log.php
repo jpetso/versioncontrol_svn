@@ -7,7 +7,7 @@ $rev = 'HEAD:1';
 while (!empty($argv)) {
   $arg = array_shift($argv);
 
-  switch($arg) {
+  switch ($arg) {
     case '-r':
     case '--revision':
       $rev = array_shift($argv);

@@ -8,7 +8,7 @@ $rev = 'HEAD';
 while (!empty($argv)) {
   $arg = array_shift($argv);
 
-  switch($arg) {
+  switch ($arg) {
     case '-R':
     case '--recursive':
       $recursive = TRUE;
