@@ -112,6 +112,39 @@ function _svnlib_svn_binary($svn_binary = NULL) {
 }
 
 /**
+ * Retrieve the version of the svn binary, and return an array with the keys
+ * 'major', 'minor' and 'patch', each containing the integer for the respective
+ * part of the version number. If invoking the SVN executable fails, an empty
+ * array is returned.
+ */
+function svnlib_version() {
+  static $version;
+
+  if (isset($version)) {
+    return $version;
+  }
+  $return_code = 0;
+  exec(_svnlib_svn_binary() .' --version', $output, $return_code);
+
+  if ($return_code != 0) {
+    $version = array();
+    return $version;
+  }
+  $line = reset($output); // The first line contains the version number.
+
+  if (!preg_match('/\b([\d]+)\.([\d]+)(?:\.([\d]+))?/', $line, $matches)) {
+    $version = array();
+    return $version;
+  }
+  $version = array(
+    'major' => (int) $matches[1],
+    'minor' => (int) $matches[2],
+    'patch' => empty($matches[3]) ? 0 : (int) $matches[3],
+  );
+  return $version;
+}
+
+/**
  * Append an appropriate output pipe to a $cmd array, which causes STDERR
  * to be written to a random file.
  *
@@ -446,7 +479,7 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   additional array element 'children' which contains the list entries below
  *   this directory, as array keys in the result array.
  *
- *   If @p $repository_url refers to a file then the @p $recursive parameter
+ *   If @p $repository_url refers to a file then the @p $depth parameter
  *   has no effect on the 'svn info' output and, by consequence, on the
  *   return value.
  *
@@ -476,8 +509,41 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $depth = 'empty',
     'info',
     '--non-interactive',
     '--xml',
-    '--depth', $depth,
   );
+
+  if ($depth == 'infinity') {
+    $cmd[] = '-R'; // "--depth infinity" is not in 1.4, but '-R' (recursive) is
+  }
+  elseif ($depth != 'empty') {
+    $version = svnlib_version();
+    if ($version['major'] >= 1 && $version['minor'] >= 5) {
+      $cmd[] = '--depth '. $depth;
+    }
+    else { // 1.4 and earlier compatibility workaround
+      foreach ($repository_urls as $repository_url) {
+        // Make sure the item is a directory, otherwise it has no children
+        // anyways (and the relative path fetched by ls will lead to incorrect
+        // results as it duplicates the basename that is already in the URL).
+        $repository_url_items = svnlib_info($repository_url, $url_revision, 'empty', $target_revision);
+        $repository_url_item = reset($repository_url_items);
+        if ($repository_url_item['type'] != 'dir') {
+          continue;
+        }
+        // Fetch child items with svn ls, that's what 1.4 can actually do.
+        $items = svnlib_ls($repository_url, $url_revision);
+        foreach ($items as $relative_path => $item) {
+          if ($depth == 'files' && $item['type'] = 'dir') {
+            continue; // 'immediates' fetches all children, 'files' only files
+          }
+          $repository_urls[] = $repository_url .'/'. $relative_path;
+        }
+      }
+    }
+  }
+  // else {
+  //   "--depth empty" is the default, leave it out for svn <= 1.4 compatibility
+  // }
+
   if (isset($target_revision)) {
     $cmd[] = '-r';
     $cmd[] = $target_revision;
