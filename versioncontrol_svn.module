@@ -258,20 +258,13 @@ function versioncontrol_svn_get_file_copy($repository, $file_item, $destination)
 
 
 /**
- * Menu callback for 'admin/project/versioncontrol-repositories/update/svn'
- * (expecting a $repo_id as one more path argument):
+ * Menu callback for
+ * 'admin/project/versioncontrol-repositories/update/svn/%versioncontrol_repository':
  * Retrieve/validate the specified repository, fetch new commits by invoking
  * the svn executable, output messages and redirect back to the repository page.
  */
-function versioncontrol_svn_update_repository_callback($repo_id) {
-  if (is_numeric($repo_id)) {
-    $repository = versioncontrol_get_repository($repo_id);
-
-    if (isset($repository)) {
-      $update_method = $repository['svn_specific']['update_method'];
-    }
-  }
-  if (isset($update_method) && $update_method == VERSIONCONTROL_SVN_UPDATE_CRON) {
+function versioncontrol_svn_update_repository_callback($repository) {
+  if ($repository['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_CRON) {
     // Set timeout limit to 3600 seconds as it can take a long time
     // to process the log initially.
     if (!ini_get('safe_mode')) {
@@ -280,8 +273,8 @@ function versioncontrol_svn_update_repository_callback($repo_id) {
     $message = _versioncontrol_svn_update_repository($repository);
     drupal_set_message($message);
   }
-  else { // $repo_id is not a number or doesn't correlate to any repository.
-    drupal_set_message(t('No such repository, did not fetch anything.'));
+  else {
+    drupal_set_message(t('Repository update method does not allow manual updates, did not fetch anything.'));
   }
   drupal_goto('admin/project/versioncontrol-repositories');
 }
