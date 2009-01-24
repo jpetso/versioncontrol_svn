@@ -66,7 +66,6 @@ function versioncontrol_svn_uninstall() {
     }
   }
 
-  db_query('DROP TABLE {versioncontrol_svn_accounts}');
   db_query('DROP TABLE {versioncontrol_svn_repositories}');
 }
 
