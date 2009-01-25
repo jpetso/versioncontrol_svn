@@ -37,18 +37,9 @@ function versioncontrol_svn_repository_admin_form_alter(&$form, $form_state, $fo
     'path_tags'     => '/%project/tags/%branch/%tag',
   );
 
-  $form['versioncontrol_svn'] = array(
-    '#type' => 'value',
-    '#value' => TRUE,
-  );
-  $form['updated'] = array(
-    '#type' => 'value',
-    '#value' => $svn_specific['updated'],
-  );
-  $form['last_revision'] = array(
-    '#type' => 'value',
-    '#value' => $svn_specific['last_revision'],
-  );
+  $form['#versioncontrol_svn'] = TRUE;
+  $form['#updated'] = $svn_specific['updated'];
+  $form['#last_revision'] = $svn_specific['last_revision'];
 
   $form['repository_information']['root']['#description'] = t(
     'The URL of this repository. Example: file:///svnroot/repo'
@@ -131,31 +122,32 @@ function versioncontrol_svn_repository_admin_form_alter(&$form, $form_state, $fo
 }
 
 /**
- * Implementation of hook_versioncontrol_extract_repository_data():
- * Extract SVN specific repository additions from the repository
- * editing/adding form's submitted values.
+ * Implementation of hook_versioncontrol_repository_submit():
+ * Extract repository data from the repository editing/adding form's
+ * submitted values, and add it to the @p $repository array. Later, that array
+ * will be passed to hook_versioncontrol_repository() as part of the repository
+ * insert/update procedure.
  */
-function versioncontrol_svn_versioncontrol_extract_repository_data($form_values) {
-  if (!isset($form_values['versioncontrol_svn'])) {
-    return array();
+function versioncontrol_svn_versioncontrol_repository_submit(&$repository, $form, $form_state) {
+  if (!isset($form['#versioncontrol_svn'])) {
+    return;
   }
 
-  $svn_specific = array(
-    'update_method' => $form_values['update_method'],
-    'updated'       => $form_values['updated'],
-    'last_revision' => $form_values['last_revision'],
-    'auth_username' => $form_values['auth_username'],
-    'path_trunk'    => $form_values['path_trunk'],
-    'path_branches' => $form_values['path_branches'],
-    'path_tags'     => $form_values['path_tags'],
+  $repository['svn_specific'] = array(
+    'updated'       => $form['#updated'],
+    'last_revision' => $form['#last_revision'],
+    'update_method' => $form_state['values']['update_method'],
+    'path_trunk'    => $form_state['values']['path_trunk'],
+    'path_branches' => $form_state['values']['path_branches'],
+    'path_tags'     => $form_state['values']['path_tags'],
+    'auth_username' => $form_state['values']['auth_username'],
   );
-  if (empty($form_values['auth_username'])) {
-    $svn_specific['auth_password'] = '';
+  if (empty($form_state['values']['auth_username'])) {
+    $repository['svn_specific']['auth_password'] = '';
   }
-  else if (!empty($form_values['auth_password'])) {
-    $svn_specific['auth_password'] = str_rot13($form_values['auth_password']);
+  else if (!empty($form_state['values']['auth_password'])) {
+    $repository['svn_specific']['auth_password'] = str_rot13($form_state['values']['auth_password']);
   }
-  return array('svn_specific' => $svn_specific);
 }
 
 /**
