@@ -49,12 +49,12 @@ include_once(dirname(__FILE__) .'/svnlib.inc');
  *   - 'rev': The item revision, as an integer (this is always at a revision
  *        when the file is actually showing up in the changelog).
  */
-function svnlib_more_log_info($revisions, $repository_root) {
+function svnlib_more_log_info(&$revisions, $repository_root) {
   if (!isset($revisions)) {
     return NULL;
   }
 
-  foreach ($revisions as $rev_key => $revision) {
+  foreach ($revisions as &$revision) {
     $actions = array();
     $queried_urls_current = array();
     $queried_urls_modified = array();
@@ -134,7 +134,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
             // Hah! gotcha. Die, delete action, die! Instead, the "deleted" item
             // is just going to be the source item of the now merged action.
             // ...that's right, what we've got here is a move.
-            unset($revisions[$rev_key]['paths'][$other_path]);
+            unset($revision['paths'][$other_path]);
             unset($actions[$other_path]);
             $actions[$action_key]['action'] = 'AD';
           }
@@ -172,7 +172,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
       // for the latter one, but we can also get the data for the delete action
       // by making the algorithm believe that the action is 'D', not 'A'.
       // When we have retrieved the replaced item, we can revert that again.
-      if ($action['replaced']) {
+      if (!empty($action['replaced'])) {
         $original_action = $actions[$path]; // backup, will be restored later on
         $actions[$path]['action'] = 'D';
       }
@@ -216,21 +216,21 @@ function svnlib_more_log_info($revisions, $repository_root) {
             }
           }
         }
-        if (!$actions[$path]['replaced']) {
+        if (!isset($actions[$path]['replaced'])) {
           // We don't absolutely need this source item for replace actions,
           // so let's only require it if it's a real delete action.
           if (!isset($actions[$path]['source_item'])) {
             // Should not happen by now... if if does, we have a problem.
             // In order to keep consistency in that case, let's just remove
             // the path and action and pretend nothing ever happened.
-            unset($revisions[$rev_key]['paths'][$path]);
+            unset($revision['paths'][$path]);
             unset($actions[$path]);
             continue;
           }
         }
       }
 
-      if ($actions[$path]['replaced']) {
+      if (!empty($actions[$path]['replaced'])) {
         // Extract the replaced item from the action that was written
         // by the ($path['action'] == 'D') branch, and then put it back
         // in its original place.
@@ -258,7 +258,7 @@ function svnlib_more_log_info($revisions, $repository_root) {
     }
 
     // Store all the actions for this revision in the result array.
-    $revisions[$rev_key]['actions'] = $actions;
+    $revision['actions'] = $actions;
 
     if (defined('SVNLIB_DEBUG')) {
       fwrite(STDOUT, '.');
@@ -290,10 +290,10 @@ function svnlib_info_cached($repository_urls, $url_revision, $target_revision = 
     $item = NULL;
     //fwrite(STDOUT, "-----\n");
 
-    if (!isset($target_revision) && isset($cache[$url][$created_rev]['no_target'])) {
+    if (!isset($target_revision) && isset($cache[$url]['created_rev']['no_target'])) {
       $item = $cache[$url][$created_rev]['no_target'];
     }
-    if (isset($target_revision) && isset($cache[$url][$created_rev][$target_revision])) {
+    if (isset($target_revision) && isset($cache[$url]['created_rev'][$target_revision])) {
       $item = $cache[$url][$created_rev][$target_revision];
     }
     if (isset($item)) {

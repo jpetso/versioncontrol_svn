@@ -563,7 +563,7 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $depth = 'empty',
   $info = implode("\n", $output);
   _svnlib_delete_temporary_files($tempfiles);
 
-  return _svnlib_parse_info($info, $recursive);
+  return _svnlib_parse_info($info, isset($recursive) ? $recursive : NULL);
 }
 
 /*
