@@ -243,11 +243,11 @@ function versioncontrol_svn_get_directory_contents($repository, $directory_item,
 }
 
 /**
- * Implementation of [versioncontrol_backend]_get_file_copy():
+ * Implementation of [versioncontrol_backend]_export_file():
  * Retrieve a copy of the contents of a given item in the repository.
  * (You won't get the original because repositories can often be remote.)
  */
-function versioncontrol_svn_get_file_copy($repository, $file_item, $destination) {
+function versioncontrol_svn_export_file($repository, $file_item, $destination) {
   _versioncontrol_svn_init_svnlib($repository);
 
   $success = svnlib_cat($destination,
