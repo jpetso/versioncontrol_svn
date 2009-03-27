@@ -178,16 +178,16 @@ function versioncontrol_svn_versioncontrol_alter_repository_list($vcs, $reposito
   $header[] = t('Update method');
   $header[] = t('Last updated');
 
-  foreach ($rows_by_repo_id as $repo_id => $row) {
+  foreach ($rows_by_repo_id as $repo_id => &$row) {
     if ($repositories[$repo_id]['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_XSVN) {
-      $rows_by_repo_id[$repo_id][] = t('external script');
-      $rows_by_repo_id[$repo_id][] = t('n/a');
+      $row['update_method'] = t('external script');
+      $row['updated'] = t('n/a');
     }
     else if ($repositories[$repo_id]['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_CRON) {
-      $rows_by_repo_id[$repo_id][] = t('logs (!fetch)', array(
+      $row['update_method'] = t('logs (!fetch)', array(
         '!fetch' => l(t('fetch now'), 'admin/project/versioncontrol-repositories/update/svn/'. $repo_id)
       ));
-      $rows_by_repo_id[$repo_id][] = $repositories[$repo_id]['svn_specific']['updated']
+      $row['updated'] = $repositories[$repo_id]['svn_specific']['updated']
         ? t('!date (r!revision)', array(
             '!date' => format_date($repositories[$repo_id]['svn_specific']['updated'], 'small'),
             '!revision' => $repositories[$repo_id]['svn_specific']['last_revision'],
