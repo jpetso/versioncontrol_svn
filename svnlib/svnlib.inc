@@ -474,10 +474,10 @@ function _svnlib_parse_ls($lists, $recursive) {
  *   if so, which of those. The default 'empty' will not retrieve any children,
  *   'files' will retrieve all immediate file children, 'immediates' will
  *   retrieve file and directory children, and 'infinity' will retrieve all
- *   descendant items there are, recursively. If $depth is something else
- *   than 'empty' then each directory item in the result array will have an
- *   additional array element 'children' which contains the list entries below
- *   this directory, as array keys in the result array.
+ *   descendant items there are, recursively. If $depth is 'infinity' then each
+ *   directory item in the result array will have an additional array element
+ *   named 'children' which contains the paths below this directory, the paths
+ *   corresponding to array keys in the result array.
  *
  *   If @p $repository_url refers to a file then the @p $depth parameter
  *   has no effect on the 'svn info' output and, by consequence, on the
@@ -493,7 +493,7 @@ function _svnlib_parse_ls($lists, $recursive) {
  * @return
  *   A array of items that contain information about the items that correspond
  *   the specified URL(s). If @p $repository_url refers to a directory and
- *   @p $recursive is TRUE, the array also includes information about all
+ *   @p $depth is 'infinity', the array also includes information about all
  *   descendants of the items that correspond to the specified URL(s).
  *   If the 'svn info' invocation exited with an error, this function
  *   returns NULL and the error message can be retrieved by calling
@@ -563,6 +563,7 @@ function svnlib_info($repository_urls, $url_revision = 'HEAD', $depth = 'empty',
   $info = implode("\n", $output);
   _svnlib_delete_temporary_files($tempfiles);
 
+  $recursive = ($depth == 'infinity');
   return _svnlib_parse_info($info, $recursive);
 }
 
@@ -642,6 +643,7 @@ function _svnlib_parse_info($info, $recursive) {
       }
     }
 
+    // For "--depth infinity", provide the caller with further hierarchy info.
     if ($recursive && $item['path'] != '/') {
       $parent_path = dirname($item['path']);
       if (isset($items[$parent_path]) && !in_array($item['path'], $items[$parent_path]['children'])) {
