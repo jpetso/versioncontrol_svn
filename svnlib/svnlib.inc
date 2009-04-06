@@ -62,7 +62,7 @@ function _svnlib_add_common_options(&$cmd) {
       '--password', escapeshellarg($auth_info['password']),
     ));
   }
-  $cmd[] = '--config-dir '. dirname(__FILE__) .'/configdir';
+  $cmd[] = '--config-dir '. escapeshellarg(dirname(__FILE__) .'/configdir');
 }
 
 /**
