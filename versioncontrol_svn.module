@@ -126,7 +126,7 @@ function versioncontrol_svn_cron() {
  * Get the user-visible version of a commit identifier a.k.a. 'revision',
  * as plaintext.
  */
-function versioncontrol_svn_format_revision_identifier($revision, $format = 'full') {
+function versioncontrol_svn_format_revision_identifier($repository, $revision, $format = 'full') {
   switch ($format) {
     case 'full':
     case 'short':
