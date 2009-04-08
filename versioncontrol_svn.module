@@ -189,17 +189,15 @@ function _versioncontrol_svn_init_svnlib($repository) {
  * Implementation of [versioncontrol_backend]_get_item():
  * Try to retrieve a given item in a repository.
  */
-function versioncontrol_svn_get_item($repository, $path, $revision = '') {
+function versioncontrol_svn_get_item($repository, $path, $constraints = array()) {
   _versioncontrol_svn_init_svnlib($repository);
 
-  if (empty($revision)) {
-    $revision = 'HEAD';
-  }
+  $revision = empty($constraints['revision']) ? 'HEAD' : $constraints['revision'];
   $info = svnlib_info($repository['root'] . $path, $revision);
+
   if (!isset($info[$path])) {
     return NULL;
   }
-
   $item = array(
     'path' => $info[$path]['path'],
     'revision' => $info[$path]['created_rev'],
