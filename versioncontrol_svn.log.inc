@@ -12,7 +12,7 @@
  * Copyright 2008, 2009 by Sam Boyer ("sdboyer", http://drupal.org/user/146719)
  */
 
-require_once(drupal_get_path('module', 'versioncontrol_svn') .'/new.svnlib/svn.php');
+require_once(drupal_get_path('module', 'versioncontrol_svn') .'/new_svnlib/svn.php');
 require_once(drupal_get_path('module', 'versioncontrol_svn') .'/logparser.inc');
 
 /**
