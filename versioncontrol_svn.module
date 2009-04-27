@@ -15,6 +15,16 @@ define('VERSIONCONTROL_SVN_UPDATE_XSVN', 2);
 // The admin and user edit pages.
 include_once(drupal_get_path('module', 'versioncontrol_svn') .'/versioncontrol_svn.forms.inc');
 
+define('VERSIONCONTROL_SVN_ACTION_DELETE', 0x001);
+define('VERSIONCONTROL_SVN_ACTION_CHANGE', 0x002);
+define('VERSIONCONTROL_SVN_ACTION_MOVE', 0x004);
+define('VERSIONCONTROL_SVN_ACTION_COPY', 0x008);
+define('VERSIONCONTROL_SVN_ACTION_ADD', 0x010 | VERSIONCONTROL_SVN_ACTION_CHANGE);
+define('VERSIONCONTROL_SVN_ACTION_MODIFY', 0x020 | VERSIONCONTROL_SVN_ACTION_CHANGE);
+define('VERSIONCONTROL_SVN_ACTION_REPLACE', 0x040 | VERSIONCONTROL_SVN_ACTION_CHANGE | VERSIONCONTROL_SVN_ACTION_DELETE);
+define('VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE', 0x080 | VERSIONCONTROL_SVN_ACTION_DELETE);
+define('VERSIONCONTROL_SVN_ACTION_DELETE_UGLY', 0x100 | VERSIONCONTROL_SVN_ACTION_DELETE);
+
 /**
  * Implementation of hook_versioncontrol_backends().
  *
@@ -167,11 +177,11 @@ function versioncontrol_svn_get_selected_label_from_other_item($repository, $tar
  * repository settings that will be reused in later svnlib function calls.
  */
 function _versioncontrol_svn_init_svnlib($repository) {
-  static $current_repo_id;
+  static $current_repo_id = array();
 
-  if (!isset($current_repo_id)) {
+/*  if (!isset($current_repo_id)) {
     include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib.inc');
-  }
+  }*/
   $current_repo_id = $repository['repo_id'];
 
   if (empty($repository['svn_specific']['auth_username'])) {

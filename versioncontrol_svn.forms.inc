@@ -24,8 +24,8 @@ function versioncontrol_svn_form_alter(&$form, $form_state, $form_id) {
 /**
  * Add SVN specific elements to the add/edit repository form.
  */
-function versioncontrol_svn_repository_admin_form_alter(&$form, $form_state, $form_id) {
-  $repository = $form['#repository'];
+function versioncontrol_svn_repository_admin_form_alter(&$form, &$form_state, $form_id) {
+  $repository = empty($form['#repository']) ? NULL : $form['#repository'];
   $svn_specific = isset($repository) ? $repository['svn_specific'] : array(
     'updated'       => 0,
     'last_revision' => 0,

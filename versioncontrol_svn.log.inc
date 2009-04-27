@@ -9,8 +9,11 @@
  * support from 'svn info') and transform it into Version Control API commits.
  *
  * Copyright 2007, 2008 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ * Copyright 2008, 2009 by Sam Boyer ("sdboyer", http://drupal.org/user/146719)
  */
-include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib-deluxe.inc');
+
+require_once(drupal_get_path('module', 'versioncontrol_svn') .'/new.svnlib/svn.php');
+require_once(drupal_get_path('module', 'versioncontrol_svn') .'/logparser.inc');
 
 /**
  * Actually update the repository by fetching commits and other stuff
@@ -26,11 +29,13 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
   if (!isset($svnlib_mapping)) {
     $svnlib_mapping = array(
       'actions' => array(
-        'A' => VERSIONCONTROL_ACTION_ADDED,
-        'M' => VERSIONCONTROL_ACTION_MODIFIED,
-        'AD' => VERSIONCONTROL_ACTION_MOVED,
-        'C' => VERSIONCONTROL_ACTION_COPIED,
-        'D' => VERSIONCONTROL_ACTION_DELETED,
+        VERSIONCONTROL_SVN_ACTION_ADD => VERSIONCONTROL_ACTION_ADDED,
+        VERSIONCONTROL_SVN_ACTION_MODIFY => VERSIONCONTROL_ACTION_MODIFIED,
+        VERSIONCONTROL_SVN_ACTION_REPLACE => VERSIONCONTROL_ACTION_MODIFIED,
+        VERSIONCONTROL_SVN_ACTION_MOVE => VERSIONCONTROL_ACTION_MOVED,
+        VERSIONCONTROL_SVN_ACTION_COPY => VERSIONCONTROL_ACTION_COPIED,
+        VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE => VERSIONCONTROL_ACTION_DELETED,
+        VERSIONCONTROL_SVN_ACTION_DELETE_UGLY => VERSIONCONTROL_ACTION_DELETED,
       ),
       'types' => array(
         'file' => VERSIONCONTROL_ITEM_FILE,
@@ -39,24 +44,20 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     );
   }
 
-  _versioncontrol_svn_init_svnlib($repository);
-  $last_revision = $repository['svn_specific']['last_revision'];
-
-  $info_items = svnlib_info($repository['root']);
-  if (!$info_items) {
-    return t('The repository at %url could not be accessed. Error message from \'svn info\': !error', array(
-      '%url' => $repository['root'],
-      '!error' => '<pre>'. check_plain(svnlib_last_error_message()) .'</pre>',
-    ));
+  $repository['repo'] = svnlib_get_repository($repository['root']);
+  $repo = &$repository['repo'];
+  if (!empty($repository['svn_specific']['auth_username'])) {
+    $repo->username($repository['svn_specific']['auth_username']);
+    $repo->password($repository['svn_specific']['auth_password']);
   }
-  // By retrieving the repository root, we can even allow
-  // non-root repository URLs to be specified in the admin UI.
-  $url_item = reset($info_items); // first array element
-  $real_root = $url_item['repository_root'];
-  $youngest_repository_revision = $url_item['rev'];
 
+  $latest_rev = $repo->getLatestRev();
+  $last_revision = $repository['svn_specific']['last_revision'];
+  // Bugger it for the moment and use a reduced range with known problems
+  // $last_revision = 650;
+  // $latest_rev = 200;
   // Don't try to update if there's nothing to update.
-  if ($last_revision == $youngest_repository_revision) {
+  if ($last_revision == $latest_rev) {
     // Anyways, we want to remember the time when we tried that.
     $repository['svn_specific']['updated'] = time();
     db_query('UPDATE {versioncontrol_svn_repositories}
@@ -66,22 +67,21 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     return t('No new log entries to fetch.');
   }
 
-  $revisions = svnlib_log(
-    $repository['root'], ($last_revision + 1) .':HEAD'
-  );
-  $revisions = svnlib_more_log_info($revisions, $real_root);
-  if (!isset($revisions)) {
-    return t('Error when fetching new log entries.');
-  }
+  // Defaults to using --xml and the basic svnlog xml output parser.
+  $revisions = $repo->svn('log')
+    ->setParser(new VersioncontrolSvnLogHandler($repo, $last_revision + 1, $latest_rev))
+    ->target('.')->revision($last_revision + 1, $latest_rev)->verbose()
+    ->execute();
 
-  foreach ($revisions as $rev_id => $revision) { // processing the oldest revision first
+  foreach ($revisions as $revision) { // processing the oldest revision first
+    // $actions = svnlib_more_log_info($revision, $repo);
     $operation = array(
       'type' => VERSIONCONTROL_OPERATION_COMMIT,
       'repository' => $repository,
       'date' => $revision['time_t'],
       'username' => $revision['author'],
       'message' => $revision['msg'],
-      'revision' => (string) $rev_id,
+      'revision' => (string) $revision['rev'],
       'labels' => array(), // no branch/tag emulation support yet
     );
     if (empty($operation['username'])) { // commit inserted by cvs2svn, for example
@@ -90,7 +90,7 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     }
     $operation_items = array();
 
-    foreach ($revision['actions'] as $path => $rev_action) {
+    foreach ($revision['paths'] as $path => $rev_action) {
       $item = array(
         'type' => $svnlib_mapping['types'][$rev_action['current_item']['type']],
         'path' => $rev_action['current_item']['path'],
@@ -116,10 +116,10 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     }
 
     // Now that was easy, wasn't it? :P
-    $operation = versioncontrol_insert_operation($operation, $operation_items);
-    if (isset($operation) && $rev_id > $last_revision) {
-      $last_revision = $rev_id;
-    }
+//    $operation = versioncontrol_insert_operation($operation, $operation_items);
+//    if (isset($operation) && $revision['rev'] > $last_revision) {
+//      $last_revision = $revision['rev'];
+//    }
   }
 
   if ($last_revision > $repository['svn_specific']['last_revision']) {
@@ -127,10 +127,10 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     $repository['svn_specific']['updated'] = time();
 
     // Everything's done, remember the last revision that was captured.
-    db_query('UPDATE {versioncontrol_svn_repositories}
-              SET last_revision = %d, updated = %d WHERE repo_id = %d',
-              $repository['svn_specific']['last_revision'],
-              $repository['svn_specific']['updated'], $repository['repo_id']);
+//    db_query('UPDATE {versioncontrol_svn_repositories}
+//              SET last_revision = %d, updated = %d WHERE repo_id = %d',
+//              $repository['svn_specific']['last_revision'],
+//              $repository['svn_specific']['updated'], $repository['repo_id']);
   }
   return t('Fetched !count new log entries.', array('!count' => count($revisions)));
 }
