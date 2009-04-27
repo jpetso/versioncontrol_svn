@@ -1,0 +1,32 @@
+Svnlib TODO list. Very rough!
+
++ = todo
+X = done
+
+  + Finish implementing all the svn subcommands and opts!
+
+  + Implement a caching mechanism. One approach would be creating a class that
+    implements ArrayAccess as a frontend to give the outward appearance of a
+    seamless array with all the accumulated results from a particular command.
+  
+  X Make config dir handling more intelligent.
+  
+  + Devise some approach to handling the differences between svn 1.4 and 1.5
+
+  + Implement a checking system that ensures some opts are passed when failure
+    to pass those opts will result in a hang - such as failing to pass a message
+    to the a commit.
+
+  + Get (some of) the global-level svn commands attached nicely to the
+    SvnInstance classes.
+
+  + Include (optionally?) some memory optimization techniques that force object
+    destruction notwithstanding the circular references. Which could mean
+    refactoring out the circular references.
+
+  + Implement arbitrary piping system.
+
+  + Consider refactoring some of the flexibility at the SvnCommand::prepare()
+    level - it's now seeming difficult to imagine a use case where that's really
+    necessary, as most things can be accomplished indirectly using execute() and
+    clear().
