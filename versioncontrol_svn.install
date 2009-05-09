@@ -86,6 +86,14 @@ function versioncontrol_svn_schema() {
         'not null' => TRUE,
         'default' => '',
       ),
+      'is_working_copy' => array(
+        'description' => 'Whether or not the "repository" is actually a subversion working copy.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
     ),
     'primary key' => array('repo_id'),
   );
@@ -136,3 +144,17 @@ function versioncontrol_svn_uninstall() {
   $ret[] = update_sql('UPDATE {versioncontrol_svn_blah} SET value = othervalue');
   return $ret;
 }*/
+
+function versioncontrol_svn_update_6200() {
+  $ret = array();
+  $spec = array(
+    'description' => 'Whether or not the "repository" is actually a subversion working copy.',
+    'type' => 'int',
+    'size' => 'tiny',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default' => 0,
+  );
+  db_add_field(&$ret, 'versioncontrol_svn_repositories', 'is_working_copy', $spec);
+  return $ret;
+}
