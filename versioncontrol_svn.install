@@ -155,6 +155,6 @@ function versioncontrol_svn_update_6200() {
     'not null' => TRUE,
     'default' => 0,
   );
-  db_add_field(&$ret, 'versioncontrol_svn_repositories', 'is_working_copy', $spec);
+  db_add_field($ret, 'versioncontrol_svn_repositories', 'is_working_copy', $spec);
   return $ret;
 }
