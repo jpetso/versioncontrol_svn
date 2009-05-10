@@ -24,24 +24,22 @@ require_once(drupal_get_path('module', 'versioncontrol_svn') .'/logparser.inc');
  *   failed because of an error.
  */
 function _versioncontrol_svn_log_update_repository(&$repository) {
-  static $svnlib_mapping = NULL;
-  if (!isset($svnlib_mapping)) {
-    $svnlib_mapping = array(
-      'actions' => array(
-        VERSIONCONTROL_SVN_ACTION_ADD => VERSIONCONTROL_ACTION_ADDED,
-        VERSIONCONTROL_SVN_ACTION_MODIFY => VERSIONCONTROL_ACTION_MODIFIED,
-        VERSIONCONTROL_SVN_ACTION_REPLACE => VERSIONCONTROL_ACTION_MODIFIED,
-        VERSIONCONTROL_SVN_ACTION_MOVE => VERSIONCONTROL_ACTION_MOVED,
-        VERSIONCONTROL_SVN_ACTION_COPY => VERSIONCONTROL_ACTION_COPIED,
-        VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE => VERSIONCONTROL_ACTION_DELETED,
-        VERSIONCONTROL_SVN_ACTION_DELETE_UGLY => VERSIONCONTROL_ACTION_DELETED,
-      ),
-      'types' => array(
-        'file' => VERSIONCONTROL_ITEM_FILE,
-        'dir' => VERSIONCONTROL_ITEM_DIRECTORY,
-      ),
-    );
-  }
+  $svnlib_mapping = array(
+    'actions' => array(
+      VERSIONCONTROL_SVN_ACTION_ADD => VERSIONCONTROL_ACTION_ADDED,
+      VERSIONCONTROL_SVN_ACTION_MODIFY => VERSIONCONTROL_ACTION_MODIFIED,
+      VERSIONCONTROL_SVN_ACTION_REPLACE => VERSIONCONTROL_ACTION_MODIFIED,
+      VERSIONCONTROL_SVN_ACTION_REPLACE_INPLACE => VERSIONCONTROL_ACTION_ADDED,
+      VERSIONCONTROL_SVN_ACTION_MOVE => VERSIONCONTROL_ACTION_MOVED,
+      VERSIONCONTROL_SVN_ACTION_COPY => VERSIONCONTROL_ACTION_COPIED,
+      VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE => VERSIONCONTROL_ACTION_DELETED,
+      VERSIONCONTROL_SVN_ACTION_DELETE_UGLY => VERSIONCONTROL_ACTION_DELETED,
+    ),
+    'types' => array(
+      'file' => VERSIONCONTROL_ITEM_FILE,
+      'dir' => VERSIONCONTROL_ITEM_DIRECTORY,
+    ),
+  );
 
   // $repository['repo'] = svnlib_get_repository($repository['root']);
   $repo = &$repository['repo'];
@@ -52,9 +50,6 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
 
   $latest_rev = $repo->getLatestRev();
   $last_revision = $repository['svn_specific']['last_revision'];
-  // Bugger it for the moment and use a reduced range with known problems
-  // $last_revision = 650;
-  // $latest_rev = 200;
   // Don't try to update if there's nothing to update.
   if ($last_revision == $latest_rev) {
     // Anyways, we want to remember the time when we tried that.
@@ -87,8 +82,8 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
       $operation['username'] = '(no author)';
       $operation['uid'] = 0;
     }
+    
     $operation_items = array();
-
     foreach ($revision['paths'] as $path => $rev_action) {
       $item = array(
         'type' => $svnlib_mapping['types'][$rev_action['current_item']['type']],

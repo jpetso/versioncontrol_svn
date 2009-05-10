@@ -22,8 +22,9 @@ define('VERSIONCONTROL_SVN_ACTION_COPY', 0x008);
 define('VERSIONCONTROL_SVN_ACTION_ADD', 0x010 | VERSIONCONTROL_SVN_ACTION_CHANGE);
 define('VERSIONCONTROL_SVN_ACTION_MODIFY', 0x020 | VERSIONCONTROL_SVN_ACTION_CHANGE);
 define('VERSIONCONTROL_SVN_ACTION_REPLACE', 0x040 | VERSIONCONTROL_SVN_ACTION_CHANGE | VERSIONCONTROL_SVN_ACTION_DELETE);
-define('VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE', 0x080 | VERSIONCONTROL_SVN_ACTION_DELETE);
-define('VERSIONCONTROL_SVN_ACTION_DELETE_UGLY', 0x100 | VERSIONCONTROL_SVN_ACTION_DELETE);
+define('VERSIONCONTROL_SVN_ACTION_REPLACE_INPLACE', 0x080 | VERSIONCONTROL_SVN_ACTION_REPLACE);
+define('VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE', 0x100 | VERSIONCONTROL_SVN_ACTION_DELETE);
+define('VERSIONCONTROL_SVN_ACTION_DELETE_UGLY', 0x200 | VERSIONCONTROL_SVN_ACTION_DELETE);
 
 /**
  * Implementation of hook_versioncontrol_backends().
@@ -199,7 +200,7 @@ function _versioncontrol_svn_init_svnlib(&$repository) {
  * Implementation of [versioncontrol_backend]_get_item():
  * Try to retrieve a given item in a repository.
  */
-function versioncontrol_svn_get_item($repository, $path, $constraints = array()) {
+function versioncontrol_svn_get_item(&$repository, $path, $constraints = array()) {
   _versioncontrol_svn_init_svnlib($repository);
   $revision = empty($constraints['revision']) ? 'HEAD' : $constraints['revision'];
   $info = reset($repository['repo']->svn('info')->target($path)->revision($revision)
@@ -223,7 +224,7 @@ function versioncontrol_svn_get_item($repository, $path, $constraints = array())
  * Retrieve the set of files and directories that exist at a specified revision
  * in the given directory inside the repository.
  */
-function versioncontrol_svn_get_directory_contents($repository, $directory_item, $recursive = FALSE) {
+function versioncontrol_svn_get_directory_contents(&$repository, $directory_item, $recursive = FALSE) {
   _versioncontrol_svn_init_svnlib($repository);
 
   $info = $repository['repo']->svn('info')->target($directory_item['path'])
@@ -253,7 +254,7 @@ function versioncontrol_svn_get_directory_contents($repository, $directory_item,
  * Retrieve a copy of the contents of a given item in the repository.
  * (You won't get the original because repositories can often be remote.)
  */
-function versioncontrol_svn_export_file($repository, $file_item, $destination) {
+function versioncontrol_svn_export_file(&$repository, $file_item, $destination) {
   _versioncontrol_svn_init_svnlib($repository);
 
   $success = svnlib_cat($destination,
@@ -269,8 +270,9 @@ function versioncontrol_svn_export_file($repository, $file_item, $destination) {
  * Retrieve/validate the specified repository, fetch new commits by invoking
  * the svn executable, output messages and redirect back to the repository page.
  */
-function versioncontrol_svn_update_repository_callback($repository) {
+function versioncontrol_svn_update_repository_callback(&$repository) {
   if ($repository['svn_specific']['update_method'] == VERSIONCONTROL_SVN_UPDATE_CRON) {
+    _versioncontrol_svn_init_svnlib($repository);
     // Set timeout limit to 3600 seconds as it can take a long time
     // to process the log initially.
     if (!ini_get('safe_mode')) {
