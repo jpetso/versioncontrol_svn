@@ -176,22 +176,22 @@ function versioncontrol_svn_get_selected_label_from_other_item($repository, $tar
  * Include the svnlib.inc helper library and initialize persistent
  * repository settings that will be reused in later svnlib function calls.
  */
-function _versioncontrol_svn_init_svnlib($repository) {
-  static $current_repo_id = array();
-
-/*  if (!isset($current_repo_id)) {
-    include_once(drupal_get_path('module', 'versioncontrol_svn') .'/svnlib/svnlib.inc');
-  }*/
-  $current_repo_id = $repository['repo_id'];
-
-  if (empty($repository['svn_specific']['auth_username'])) {
-    svnlib_unset_authentication_info();
+function _versioncontrol_svn_init_svnlib(&$repository) {
+  if (!empty($repository['repo']) && $repository['repo'] instanceof SvnInstance) {
+    // Cut out early if the repo object has already been built.
+    return;
   }
-  else {
-    svnlib_set_authentication_info(
-      $repository['svn_specific']['auth_username'],
-      str_rot13($repository['svn_specific']['auth_password'])
-    );
+
+  if (!class_exists('SvnInstance')) {
+    require_once(drupal_get_path('module', 'versioncontrol_svn') .'/new_svnlib/svn.php');
+  }
+
+  $repository['repo'] = &svnlib_get_repository($repository['root']);
+  $repo = &$repository['repo'];
+
+  if (!empty($repository['svn_specific']['auth_username'])) {
+    $repo->username($repository['svn_specific']['auth_username'])
+      ->password(str_rot13($repository['svn_specific']['auth_password']));
   }
 }
 
@@ -201,17 +201,17 @@ function _versioncontrol_svn_init_svnlib($repository) {
  */
 function versioncontrol_svn_get_item($repository, $path, $constraints = array()) {
   _versioncontrol_svn_init_svnlib($repository);
-
   $revision = empty($constraints['revision']) ? 'HEAD' : $constraints['revision'];
-  $info = svnlib_info($repository['root'] . $path, $revision);
+  $info = reset($repository['repo']->svn('info')->target($path)->revision($revision)
+    ->execute()->seekPath($path));
 
-  if (!isset($info[$path])) {
+  if (empty($info)) {
     return NULL;
   }
   $item = array(
-    'path' => $info[$path]['path'],
-    'revision' => $info[$path]['created_rev'],
-    'type' => ($info[$path]['type'] == 'dir')
+    'path' => $info['path'],
+    'revision' => $info['created_rev'],
+    'type' => ($info['type'] == 'dir')
               ? VERSIONCONTROL_ITEM_DIRECTORY
               : VERSIONCONTROL_ITEM_FILE,
   );
@@ -226,17 +226,15 @@ function versioncontrol_svn_get_item($repository, $path, $constraints = array())
 function versioncontrol_svn_get_directory_contents($repository, $directory_item, $recursive = FALSE) {
   _versioncontrol_svn_init_svnlib($repository);
 
-  $contents = svnlib_info(
-    $repository['root'] . $directory_item['path'], $directory_item['revision'],
-    $recursive ? 'infinite' : 'immediates'
-  );
-  if (empty($contents)) {
-    return NULL;
-  }
+  $info = $repository['repo']->svn('info')->target($directory_item['path'])
+    ->revision($directory_item['revision'])
+    ->depth($recursive ? 'infinite' : 'immediates')
+    ->execute()->seekPath($path);
+
   $items = array();
 
-  foreach ($contents as $path => $item_info) {
-    $items[$path] = array(
+  foreach ($info as $item_info) {
+    $items[$item_info['path']] = array(
       'item' => array(
         'path' => $item_info['path'],
         'revision' => $item_info['created_rev'],

@@ -12,7 +12,6 @@
  * Copyright 2008, 2009 by Sam Boyer ("sdboyer", http://drupal.org/user/146719)
  */
 
-require_once(drupal_get_path('module', 'versioncontrol_svn') .'/new_svnlib/svn.php');
 require_once(drupal_get_path('module', 'versioncontrol_svn') .'/logparser.inc');
 
 /**
@@ -44,7 +43,7 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     );
   }
 
-  $repository['repo'] = svnlib_get_repository($repository['root']);
+  // $repository['repo'] = svnlib_get_repository($repository['root']);
   $repo = &$repository['repo'];
   if (!empty($repository['svn_specific']['auth_username'])) {
     $repo->username($repository['svn_specific']['auth_username']);
