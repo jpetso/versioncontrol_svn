@@ -35,9 +35,7 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
     $this->instance = $instance;
     $this->firstRev = $first_rev;
     $this->lastRev = $last_rev;
-    // $info->setParser($this);
     $this->log = new VersioncontrolSvnLogParser();
-    $this->aggregateInfo = $this->instance->svn('info');
   }
   
   public function openOutputHandle() {
@@ -61,12 +59,14 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
     foreach ($this->log as $revision) {
       // Inner revisions loop; each iteration encompasses with a single path on
       // the current revision.
+      $this->aggregateInfo[$revision['rev']] = $this->instance->svn('info');
+      $this->info = $this->aggregateInfo[$revision['rev']];
       foreach ($revision['paths'] as $path => $path_info) {
         // Add info requests for copyfrom and delfrom info, which will be used
         // later to fill out item metadata.
         foreach (array('copyfrom', 'delfrom') as $from) {
           if (isset($path_info[$from])) {
-            $this->aggregateInfo->target($path_info[$from]['path'], $path_info[$from]['rev'], TRUE);
+            $this->info->target($path_info[$from]['path'], $path_info[$from]['rev'], TRUE);
           }
         }
 
@@ -74,7 +74,7 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
         // can keep the number of 'svn info' invocations down to a minimum.
         // Doing this one by one would be a major blow to performance.
         if ($path_info['action'] & VERSIONCONTROL_SVN_ACTION_CHANGE) {
-          $this->aggregateInfo->target($path, $revision['rev'], TRUE);
+          $this->info->target($path, $revision['rev'], TRUE);
           if ($path_info['action'] == VERSIONCONTROL_SVN_ACTION_MODIFY) {
             // Modified items require the special operative/peg rev syntax to
             // svn info, so we queue them into their own special per-rev object.
@@ -84,14 +84,14 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
         if ($path_info['action'] == VERSIONCONTROL_SVN_ACTION_DELETE_SIMPLE) {
           // Ugly delete actions do not originate in the previous revision, so
           // querying there would result in an error. Only simple deletes here
-          $this->aggregateInfo->target($path, $revision['rev'] - 1, TRUE);
+          $this->info->target($path, $revision['rev'] - 1, TRUE);
         }
       } // end inner revisions loop
     } // end outer revisions loop
-    // All queued up - fire it and store the resulting info parser.
-    $this->info = $this->aggregateInfo->execute();
-    // Kill aggregateinfo to free memory - it can easily contain LOTS of objects
-    unset($this->aggregateInfo);
+//    // All queued up - fire it and store the resulting info parser.
+//    $this->info = $this->aggregateInfo->execute();
+//    // Kill aggregateinfo to free memory - it can easily contain LOTS of objects
+//    unset($this->aggregateInfo);
     $this->ready = TRUE;
     return $this;
   }
@@ -139,14 +139,16 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
    * Implementation of Iterator::next().
    */
   public function next() {
-    unset($this->opRevAggregator[$this->currentRev]);
-    unset($this->revision);
+    $this->opRevAggregator[$this->currentRev] = NULL;
+    $this->aggregateInfo[$this->currentRev] = NULL;
+//    unset($this->revision);
     $this->currentRev++;
   }
 
   protected function pointersToCurrentRev() {
     // Retrieve the revision data from the cached xml output of svn log.
     $this->revision = $this->log->seek($this->currentRev);
+    $this->info = $this->aggregateInfo[$this->currentRev]->execute();
     $this->actions = &$this->revision['paths'];
     $this->opRevInfo = &$this->opRevAggregator[$this->currentRev];
     if ($this->opRevInfo instanceof SvnInfo) {
@@ -164,7 +166,7 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
   public function current() {
     $this->pointersToCurrentRev();
     // Retrieve all info items for the current revision.
-    foreach ($this->info->seek(array('rev' => $this->currentRev)) as $path => $info_item) {
+    foreach ($this->info->seekRev($this->currentRev) as $path => $info_item) {
       // $path = $info_item['path']; // REFACTORED OUT
       if (empty($this->actions[$path])) {
         continue; // means we're on one that was called up by somethin else
@@ -244,70 +246,43 @@ class VersioncontrolSvnLogHandler implements CLIParser, Iterator {
 
       // Ok, that was the easy part - 'M' and 'A' are covered and should now
       // have a current item (in all cases) and source item (if it existed).
-
-      // If the original type was 'R', we essentially have two actions:
-      // one delete action and one add/move/copy action. We now have the data
-      // for the latter one, but we can also get the data for the delete action
-      // by making the algorithm believe that the action is 'D', not 'A'.
-      // When we have retrieved the replaced item, we can revert that again.
-      if ($action['action'] == VERSIONCONTROL_SVN_ACTION_REPLACE) {
-        $original_action = $action; // backup, will be restored later on
-      }
-
-      // The hard part is 'D'. There are two possible cases...
+      // The hard part is 'D'.
       if ($action['action'] & VERSIONCONTROL_SVN_ACTION_DELETE) {
-        if (empty($action['delfrom'])) {
-          $source_item = $this->info->seekBoth($this->currentRev - 1, $this->instance->getRepoRoot() . $path);
-          $action['source_item'] = self::itemFromInfo($source_item);
-          $action['current_item'] = $action['source_item'];
-          $action['current_item']['rev'] = $this->currentRev; // path and type are ok
-        }
-        else {
+        // If the original type was 'R', we essentially have two actions:
+        // one delete action and one add/move/copy action. We now have the data
+        // for the latter one, but we can also get the data for the delete action
+        // by making the algorithm believe that the action is 'D', not 'A'.
+        // Thus, we store the deleted item parent info into different slot.
+        $into = $action['action'] == VERSIONCONTROL_SVN_ACTION_REPLACE ? 'replaced_item' : 'source_item';
+        if (!empty($action['delfrom'])) {
           $source_item = $this->info->seekBoth($action['delfrom']['rev'], $this->instance->getRepoRoot() . $action['delfrom']['path']);
-          $action['source_item'] = self::itemFromInfo($source_item);
-          $action['current_item'] = $action['source_item'];
+          $action[$into] = self::itemFromInfo($source_item);
+          $action['current_item'] = $action[$into];
           $action['current_item']['path'] = $path;
           $action['current_item']['rev'] = $this->currentRev;
           // type is ok, as it's the same as in the source item.
         }
-//        }
-        if ($action['action'] == VERSIONCONTROL_SVN_ACTION_REPLACE) {
-          // We don't absolutely need this source item for replace actions,
-          // so let's only require it if it's a real delete action.
-          if (!isset($action['source_item'])) {
-            // Should not happen by now... if if does, we have a problem.
-            // In order to keep consistency in that case, let's just remove
-            // the path and action and pretend nothing ever happened.
-            unset($this->revision['paths'][$path]);
-            // unset($action);
-            continue;
-          }
+        elseif ($source_item = $this->info->seekBoth($this->currentRev - 1, $this->instance->getRepoRoot() . $path)) {
+          $action[$into] = self::itemFromInfo($source_item);
+          $action['current_item'] = $action[$into];
+          $action['current_item']['rev'] = $this->currentRev; // path and type are ok
         }
-      } // End machinations for 'D' actions
-
-      if ($action['action'] == VERSIONCONTROL_SVN_ACTION_REPLACE) {
-        // Extract the replaced item from the action that was written
-        // by the ($path['action'] == 'D') branch, and then put it back
-        // in its original place.
-        if (!empty($action['source_item'])) {
-          $original_action['replaced_item'] = $action['source_item'];
+        elseif ($action['action'] == VERSIONCONTROL_SVN_ACTION_REPLACE) {
+          // This represents a very slim case, we've got the rare special case that
+          // the parent directory has been copied to a new location where the
+          // old copied item was swapped against a new one. (Yeah, happens.)
+          // It is effectively an in-place replace without any parent
+          // information; since there is no no parent/source, we record it as a
+          // simple add.
+          $action['action'] = VERSIONCONTROL_SVN_ACTION_REPLACE_INPLACE;
         }
-        $action = $original_action;
-
-        // If the copy/move action heuristics and the delete action heuristics
-        // retrieve the same item, then we've got the rare special case that
-        // the parent directory has been copied to a new location where the
-        // old copied item was swapped against a new one. (Yeah, happens.)
-        // Same item as 'source_item' and 'replaced_item' is bad, so guard
-        // against this.
-        if ($action['source_item']['path'] == $action['replaced_item']['path']
-            && $action['source_item']['rev'] == $action['replaced_item']['rev']) {
-          $action['action'] = VERSIONCONTROL_SVN_ACTION_ADD;
-          unset($action['source_item']);
+        else {
+          // Throw a warning here so that everything doesn't break, but it's
+          // really clear we've found an edge case.
+          throw new Exception("Hit a very, very weird edge case on some operation with a delete component. Revision $this->currentRev, path $path.", E_WARNING);
         }
-      }
+      } // End machinations for actions with any kind of 'delete' component
     }
-
     // All done! Send that sucker out for processing.
     return $this->revision;
   }
