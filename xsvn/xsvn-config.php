@@ -161,6 +161,56 @@ function xsvn_get_commit_files($rev_or_tx, $repo, $is_revision=TRUE) {
   return $items;
 }
 
+/**
+ * Fill an item array suitable for versioncontrol_has_write_access from an
+ * item's path and status.
+ *
+ * @param path
+ *   The path of the item.
+ *
+ * @param status
+ *   The status of the item, as returned from 'svnlook changed'.
+ */
+function xsvn_get_operation_item($path, $status) {
+  $item['path'] = $path;
+
+  // The item has been deleted.
+  if (preg_match('@D@', $status)) {
+    // A trailing slash means the item is a directory
+    $item['type'] = (preg_match('@/$@', $path)) ?
+      VERSIONCONTROL_ITEM_DIRECTORY_DELETED : VERSIONCONTROL_ITEM_FILE_DELETED;
+  }
+  else {
+    $item['type'] = (preg_match('@/$@', $path)) ?
+      VERSIONCONTROL_ITEM_DIRECTORY : VERSIONCONTROL_ITEM_FILE;
+  }
+
+  switch ($status) {
+    case 'A':
+      $item['action'] = VERSIONCONTROL_ACTION_ADDED;
+      break;
+    case 'D':
+      $item['action'] = VERSIONCONTROL_ACTION_DELETED;
+      break;
+    case 'U':
+      $item['action'] = VERSIONCONTROL_ACTION_MODIFIED;
+      break;
+    case '_U':
+      // Item properties have changed, but nothing else.
+      $item['action'] = VERSIONCONTROL_ACTION_OTHER;
+      break;
+    case 'UU':
+      // Both properties and contents have changed.
+      // TODO: Should this count as MODIFIED or OTHER, since it's really both?
+      $item['action'] = VERSIONCONTROL_ACTION_MODIFIED;
+      break;
+    default:
+      fwrite(STDERR, t('Error: failed to read the status of the commit.') ."\n");
+      exit(4);
+  }
+  return $item;
+}
+
 // TODO: what do I do?
 function xsvn_log_add($filename, $dir, $mode = 'w') {
   $fd = fopen($filename, $mode);
