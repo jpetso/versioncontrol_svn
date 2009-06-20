@@ -80,7 +80,7 @@ function versioncontrol_svn_repository_admin_form_alter(&$form, &$form_state, $f
     '#weight' => 12,
     '#options' => array(
       VERSIONCONTROL_SVN_UPDATE_CRON => t('Automatic log retrieval.'),
-      //VERSIONCONTROL_SVN_UPDATE_XSVN => t('Use external script to insert data.'),
+      VERSIONCONTROL_SVN_UPDATE_XSVN => t('Use external script to insert data.'),
     ),
   );
 
