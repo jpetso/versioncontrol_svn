@@ -1,47 +1,17 @@
 <?php
-class SvnPreCommitTestCase extends DrupalWebTestCase {
+
+require_once(drupal_get_path('module', 'versioncontrol_svn') .'/tests/svn_helper.inc');
+
+class SvnPreCommitTestCase extends SvnHelper {
   /**
    * Implementation of getInfo().
    */
   public static function getInfo() {
     return array(
-      'name' => t('VersionControl_SVN hooks'),
+      'name' => t('versioncontrol_svn hooks'),
       'description' => t('Test the functionality of the SVN hooks'),
       'group' => t('VersionControl'),
     );
-  }
-
-  function setUp() {
-    parent::setUp('versioncontrol', 'versioncontrol_svn');
-
-    $this->repo_path = file_directory_path() . '/svnrepo';
-    $this->wc_path = file_directory_path() . '/svnwc';
-    $this->pre_commit_hook = file_directory_path() . '/svnrepo/hooks/pre-commit';
-    $this->pre_commit_file_src = drupal_get_path('module', 'versioncontrol_svn') . '/xsvn/xsvn-pre-commit.php';
-    $this->xsvn_config_src = drupal_get_path('module', 'versioncontrol_svn') . '/xsvn/xsvn-config.php';
-    $this->xsvn_dir = $this->repo_path . '/hooks/xsvn';
-    $this->pre_commit_file_dst = $this->xsvn_dir . '/xsvn-pre-commit.php';
-    $this->xsvn_config_dst = $this->xsvn_dir . '/xsvn-config.php';
-    $this->pre_commit_text = "#!/bin/sh\n".
-      "$this->repo_path/hooks/xsvn/xsvn-pre-commit.php $this->repo_path/hooks/xsvn/xsvn-config.php " .
-      '$@';
-
-    // Create subversion repository
-    shell_exec("svnadmin create $this->repo_path");
-
-    // Write the pre-commit hook
-    $file = fopen($this->pre_commit_hook, 'w');
-    fwrite($file, $this->pre_commit_text);
-    fclose($file);
-    chmod($this->pre_commit_hook, 0755);
-
-    // Create the hooks/xsvn directory.
-    mkdir($this->xsvn_dir);
-
-    // Copy the xsvn files
-    copy($this->pre_commit_file_src, $this->pre_commit_file_dst);
-    copy($this->xsvn_config_src, $this->xsvn_config_dst);
-    chmod($this->pre_commit_file_dst, 0755);
   }
 
   /**
@@ -50,6 +20,42 @@ class SvnPreCommitTestCase extends DrupalWebTestCase {
   function testInvalidArgHelp() {
     $result = shell_exec($this->pre_commit_hook . ' 2>&1 1> /dev/null');
     $this->assertEqual($result, "Usage: $this->pre_commit_file_dst <config file> REPO_PATH TX_NAME\n\n",
-                      "Print help text when incorrect number of arguments is given.");
+      "Print help text when incorrect number of arguments is given.", "Shell Interaction");
+  }
+
+  /**
+   * Test denying unauthorized user from committing to the repository.
+   *
+   * May be overly dependent on the exact strings returned by Subversion.
+   */
+  function testDenyUnauthorized() {
+    // Check out the repository.
+    chdir($this->file_path);
+    $result = shell_exec("svn checkout $this->repo_url $this->wc_path");
+    $this->assertEqual($result, "Checked out revision 0.\n",
+      "Check out the initial svn version.", "Shell Interaction");
+
+    // Add a file to the working copy.
+    $test_file =  'source.txt';
+    $contents = 'file contents';
+    $msg = 'commit message';
+    chdir($this->wc_path);
+    $file = fopen($test_file, 'w');
+    fwrite($file, $contents);
+    fclose($file);
+
+    $result = shell_exec("svn add $test_file");
+    $this->assertEqual($result, "A         $test_file\n",
+      "Add test file to the repository.", "Shell Interaction");
+
+    // Attempt to commit, but fail because the system user does not have access.
+    $result = shell_exec("svn commit -m '$msg' 2>&1");
+    $this->assertEqual($result,
+      "Adding         source.txt\n" .
+      "Transmitting file data .svn: Commit failed (details follow):\n" .
+      "svn: Commit blocked by pre-commit hook (exit code 6) with output:\n" .
+      "** ERROR: $this->server_user\n" .
+      " does not have commit access to this repository.\n\n\n",
+      "Unauthorized user is denied access.", "Shell Interaction");
   }
 }
