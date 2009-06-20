@@ -100,6 +100,7 @@ class SvnHelper extends DrupalWebTestCase {
     $this->server_user = $_ENV['APACHE_RUN_USER'];
 
     $this->config_ext = "\$xsvn['drupal_path'] = '" . $this->base_path . "';\n";
+    $this->config_ext .= "\$GLOBALS['simpletest_db_prefix'] = '". $GLOBALS['db_prefix'] ."';";
     $this->pre_commit_hook = $this->repo_path . '/hooks/pre-commit';
 
     $module_source = realpath(drupal_get_path('module', 'versioncontrol_svn'));
@@ -111,7 +112,7 @@ class SvnHelper extends DrupalWebTestCase {
     $this->xsvn_config_dst = $this->xsvn_dir . '/xsvn-config.php';
 
     $this->pre_commit_text = "#!/bin/sh\n".
-      "$this->pre_commit_file_dst $this->xsvn_config_dst " .
+      "php $this->pre_commit_file_dst $this->xsvn_config_dst " .
       '$@';
 
     // Create subversion repository
@@ -138,7 +139,7 @@ class SvnHelper extends DrupalWebTestCase {
   }
 
   /**
-   * Return to old working directory.
+   * Return to old working directory and clean up directories.
    */
   function tearDown() {
     chdir($this->old_wd);

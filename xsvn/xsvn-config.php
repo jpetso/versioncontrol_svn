@@ -83,6 +83,12 @@ function xsvn_bootstrap($xsvn) {
 
   require_once './includes/bootstrap.inc';
   drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+
+  // Overwrite db_prefix if this is a simpletest run.
+  if (isset($GLOBALS['simpletest_db_prefix'])) {
+    $GLOBALS['db_prefix'] = $GLOBALS['simpletest_db_prefix'];
+  }
+
 }
 
 /**

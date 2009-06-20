@@ -8,7 +8,7 @@ class SvnPreCommitTestCase extends SvnHelper {
    */
   public static function getInfo() {
     return array(
-      'name' => t('versioncontrol_svn hooks'),
+      'name' => t('versioncontrol_svn pre-commit hook'),
       'description' => t('Test the functionality of the SVN hooks'),
       'group' => t('VersionControl'),
     );
@@ -19,7 +19,7 @@ class SvnPreCommitTestCase extends SvnHelper {
    */
   function testInvalidArgHelp() {
     $result = shell_exec($this->pre_commit_hook . ' 2>&1 1> /dev/null');
-    $this->assertEqual($result, "Usage: $this->pre_commit_file_dst <config file> REPO_PATH TX_NAME\n\n",
+    $this->assertEqual(preg_match("/Usage: .+ <config file> REPO_PATH TX_NAME/", $result), 1,
       "Print help text when incorrect number of arguments is given.", "Shell Interaction");
   }
 
@@ -42,13 +42,34 @@ class SvnPreCommitTestCase extends SvnHelper {
 
     // Attempt to commit, but fail because the system user does not have access.
     $result = $this->WcCommit();
-    $this->assertEqual($result,
-      "Adding         source.txt\n" .
-      "Transmitting file data .svn: Commit failed (details follow):\n" .
-      "svn: Commit blocked by pre-commit hook (exit code 6) with output:\n" .
-      "** ERROR: $this->server_user\n" .
-      " does not have commit access to this repository.\n\n\n",
-      "Unauthorized user is denied access.", "Shell Interaction");
+    $error_msg = t(
+      "** ERROR: Version Control API cannot determine a repository\n".
+      "** for the !commit-branch-or-tag information given by the VCS backend.",
+      array('!commit-branch-or-tag' => t('commit'))
+    );
+
+    $this->assertEqual(preg_match('/' . preg_quote($error_msg) . '/', $result),
+      1,
+      "Cannot commit with no existing repository.",
+      "Shell Interaction");
+
+    // Add a repository, but don't register an account.
+    $user = $this->drupalCreateUser(array('administer version control systems'));
+    $this->drupalLogin($user);
+
+    $menu_path = 'admin/project/versioncontrol-repositories/add-svn';
+    $edit = array();
+    $edit['repo_name'] = $this->randomName();
+    $edit['root'] = $this->repo_url;
+    $this->drupalPost($menu_path, $edit, t('Save repository'));
+
+    $result = $this->WcCommit();
+    $error_msg = t('** ERROR: !user does not have commit access to this repository.',
+                 array('!user' => $this->server_user));
+      $this->assertEqual(preg_match('/' . preg_quote($error_msg) . '/', $result),
+        1,
+        "Cannot commit to repository without an account on that repository.",
+        "pre-commit hook");
   }
 
   /**
@@ -60,23 +81,32 @@ class SvnPreCommitTestCase extends SvnHelper {
 
     $menu_path = 'admin/project/versioncontrol-repositories/add-svn';
     $edit = array();
-    $edit['repo_name'] = 'Test Repo';
+    $edit['repo_name'] = $this->randomName();
     $edit['root'] = $this->repo_url;
     $this->drupalPost($menu_path, $edit, t('Save repository'));
 
     $result = $this->WcCheckOut();
     $result = $this->WcAddSampleFile();
 
-    $menu_path = 'versioncontrol/register';
+    $repo = array_shift(versioncontrol_get_repositories(array(
+                   'names' => array($edit['repo_name'])
+                 )));
+    $repo_id = $repo['repo_id'];
+
+    $menu_path = "versioncontrol/register/$user->uid/$repo_id";
+    $edit = array();
+    $edit['repo_id'] = $repo_id;
+
     $edit = array();
     $edit['account_name'] = $this->server_user;
-    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+//    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+    versioncontrol_insert_account($repo, $user->uid, $this->server_user);
 
     // TODO: should be able to commit with only 'use version control systems'
 
     $result = $this->WcCommit();
-
-    $this->assertEqual(preg_match('/Committed revision [0-9]+\./', $result), 1,
+    $this->assertEqual(preg_match('/Committed revision [0-9]+\./', $result),
+      1,
       "Successfully committed after authorization.",
       "pre-commit hook");
   }
