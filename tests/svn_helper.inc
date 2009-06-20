@@ -181,6 +181,7 @@ class SvnHelper extends DrupalWebTestCase {
     $edit['repo_name'] = $this->repo['name'];
     $edit['root'] = $this->repo['url'];
     $edit['update_method'] = VERSIONCONTROL_SVN_UPDATE_XSVN;
+    $edit['allow_unauthorized_access'] = FALSE;
     $this->drupalPost($menu_path, $edit, t('Save repository'));
     $repo = array_shift(versioncontrol_get_repositories(array(
                 'names' => array($edit['repo_name'])

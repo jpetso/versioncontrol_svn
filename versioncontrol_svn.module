@@ -67,7 +67,7 @@ function versioncontrol_svn_versioncontrol_backends() {
         // Able to cancel commits if the committer lacks permissions
         // to commit to specific paths and/or branches.
         // Not implemented yet.
-        //VERSIONCONTROL_CAPABILITY_COMMIT_RESTRICTIONS,
+        VERSIONCONTROL_CAPABILITY_COMMIT_RESTRICTIONS,
         // Able to cancel branch or tag assignments if the committer lacks
         // permissions to create/update/delete those.
         // Not implemented yet.
