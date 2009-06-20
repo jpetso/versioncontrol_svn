@@ -29,7 +29,7 @@ function xsvn_init($argc, $argv) {
   $date = time(); // remember the time of the current commit for later
   $this_file = array_shift($argv);   // argv[0]
 
-  if ($argc < 4) {
+  if ($argc != 4) {
     xsvn_help($this_file, STDERR);
     exit(3);
   }
