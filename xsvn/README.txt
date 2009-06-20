@@ -46,7 +46,7 @@ xsvn-start-commit.php
         repositories (like drupal.org).
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-start-commit.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-start-commit.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 --------------------
 xsvn-pre-commit.php
@@ -54,10 +54,10 @@ xsvn-pre-commit.php
 
   A script to enforce access controls for users attempting to commit. This hook
   is triggered before a transaction is saved as a commit. To enable it, add this
-  line to your SVN_DIR/hooks/start-commit file.
+  line to your SVN_DIR/hooks/pre-commit file.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-pre-commit.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-pre-commit.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 --------------------
@@ -69,7 +69,7 @@ xsvn-post-commit.php
   your SVN_DIR/hooks/post-commit file.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-post-commit.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-post-commit.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 --------------------
@@ -80,7 +80,7 @@ xsvn-pre-revprop-change.php
         unless enabled with this hook.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-pre-revprop-change.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-pre-revprop-change.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 --------------------
@@ -90,7 +90,7 @@ xsvn-post-revprop-change.php
   TODO: Currently unused. Runs after a revision property change.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-post-revprop-change.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-post-revprop-change.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 --------------------
@@ -100,7 +100,7 @@ xsvn-pre-lock.php
   TODO: Currently unused.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-pre-lock.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-pre-lock.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 --------------------
@@ -110,7 +110,7 @@ xsvn-post-lock.php
   TODO: Currently unused.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-post-lock.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-post-lock.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 --------------------
@@ -120,7 +120,7 @@ xsvn-pre-unlock.php
   TODO: Currently unused.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-pre-unlock.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-pre-unlock.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 --------------------
 xsvn-post-unlock.php
@@ -129,7 +129,7 @@ xsvn-post-unlock.php
   TODO: Currently unused.
 
 #!/bin/sh
-php [path_to_svn]/hooks/xsvn/xsvn-post-unlock.php [path_to_svn]/hooks/xsvn/xsvn-config.php
+php [path_to_svn]/hooks/xsvn/xsvn-post-unlock.php [path_to_svn]/hooks/xsvn/xsvn-config.php $@
 
 
 AUTHOR
