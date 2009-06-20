@@ -155,7 +155,8 @@ function xsvn_get_commit_files($rev_or_tx, $repo, $is_revision=TRUE) {
 
   // Separate the status from the path names.
   foreach ($lines as $line) {
-    list($status, $path) = preg_split('/\s+/', $line);
+    // Limit to 2 elements to avoid cutting up paths with spaces.
+    list($status, $path) = preg_split('/\s+/', $line, 2);
     $items[$path] = $status;
   }
   return $items;
