@@ -62,7 +62,7 @@ class SvnHelper extends DrupalWebTestCase {
    * Help set up a test to use Subversion.
    */
   function setUp() {
-    parent::setUp('versioncontrol', 'versioncontrol_svn');
+    parent::setUp('versioncontrol', 'versioncontrol_svn', 'commitlog');
 
     $this->old_wd          = getcwd();
     $this->file_path       = realpath(file_directory_path());
@@ -241,17 +241,40 @@ class SvnHelper extends DrupalWebTestCase {
    *   The operation for which to check.
    */
   function assertOperationLog($op_id, $operation) {
-    $this->drupalGet('commitlog?id='. $op_id);
+    $options = array('query' => array('id' => $op_id));
+    $this->drupalGet('commitlog', $options);
+
+    $this->assertResponse(
+      200,
+      t('User can access commit log.')
+    );
+
     $this->assertNoText(
       t('No log messages found.'),
       t('Make sure a log message is found.'),
       t('operation log')
     );
-    $desc = $this->elements->xpath("//div[class='description']/pre");
-    $this->assertEqual(
-      $desc,
+
+    $this->assertText(
       $operation['message'],
       t('Make sure page message matches operation message.'),
+      t('operation log')
+    );
+
+    $theme_string = theme('commitlog_operations_page', array(
+              'vc_op_ids' => array($op_id)
+            ));
+
+    // For some reason, the closing tag of the outer <div> appears on the same
+    // line in $page, but not in the content of the page. It doesn't seem like
+    // that should happen. Convert both to XML and then cast them to strings.
+    $theme_xml = new SimpleXMLElement($theme_string);
+    $returned = array_shift($this->elements->xpath('//div[@class="commitlog"]'));
+
+    $this->assertEqual(
+      (string) $returned,
+      (string) $theme_xml,
+      t('Found a themed page with the given commit.'),
       t('operation log')
     );
   }

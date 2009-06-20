@@ -25,13 +25,6 @@ class SvnPostCommitTestCase extends SvnHelper {
   }
 
   /**
-   * Load the commitlog module.
-   */
-  public function setUp() {
-    parent::setUp('commitlog');
-  }
-
-  /**
    * Test the printing of usage information when incorrect number of arguments
    * is given.
    */
@@ -53,13 +46,13 @@ class SvnPostCommitTestCase extends SvnHelper {
   /**
    * Test committing to a repository when the svn username of the committer does
    * not match any account in the database.
+   *
+   * Should assign the commit to uid 0, anonymous.
    */
   function testNoUserAccount() {
     $this->initRepo();
     $this->initHook('post-commit');
 
-    // To get VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT.
-    require_once $this->hooks['config']['src'];
     $this->wcCheckout();
 
     $path = $this->randomName();
@@ -72,36 +65,75 @@ class SvnPostCommitTestCase extends SvnHelper {
     $user = $this->drupalCreateUser(array('administer version control systems'));
     $this->drupalLogin($user);
     $this->initDrupalRepo();
-
     $result = $this->wcCommit($message);
-
-    $error_pattern = '/Warning: post-commit hook failed \\(exit code (\d+)\\) with output:/';
+    $pattern = '/Committed revision (\d+)\./';
     $this->assertTrue(
-      preg_match($error_pattern, $result, $matches),
-      'post-commit hook fails when no user account exists with the repository.',
-      'post-commit hook'
+      preg_match($pattern, $result, $matches),
+      t('Commited successfully.'),
+      t('Shell Interaction')
     );
 
-    $error_code = intval($matches[1]);
+    $rev = $matches[1];
+    $this->assertNotNull(
+      $rev,
+      t('Commit output contained a revision.'),
+      t('Shell Interaction')
+    );
+
+    $ops = versioncontrol_get_commit_operations(array(
+             'vcs' => array('svn'),
+             'repo_ids' => array($this->repo['id']),
+
+           ));
     $this->assertEqual(
-      $error_code,
-      VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT,
-      'Exit with error code when user does not have an account.',
-      'post-commit hook'
+      count($ops),
+      1,
+      t('One commit operation exists in the repository.'),
+      t('post-commit hook')
+    );
+
+    $op = array_shift($ops);
+    $this->assertEqual(
+      $op['uid'],
+      0,
+      t('Commit without a user account is attributed to uid 0 (anonymous).'),
+      t('post-commit hook')
+    );
+
+    $this->assertEqual(
+      $op['username'],
+      $this->server_user,
+      t('Username was correctly set.'),
+      t('post-commit hook')
+    );
+
+    $this->assertEqual(
+      $op['message'],
+      $message,
+      t('Message is set correctly.'),
+      t('post-commit hook')
+    );
+
+    $this->assertEqual(
+      $op['revision'],
+      $rev,
+      t('Revision is set correctly.'),
+      t('post-commit hook')
     );
   }
 
   /**
-   * Test successfully updating the repository from the post-commit hook.
+   * Test updating the repository from the post-commit hook and a user with an
+   * account on the repository.
    */
-  function testSuccessfulLog() {
+  function testRegisteredLog() {
     $this->initRepo();
     $this->initHook('post-commit');
 
     $path = $this->randomName();
     $contents = $this->randomName();
     $message = $this->randomName();
-    $user = $this->drupalCreateUser(array('administer version control systems'));
+    $user = $this->drupalCreateUser(array('administer version control systems', 'access commit messages'));
     $this->drupalLogin($user);
 
     $this->initDrupalRepo();
@@ -140,14 +172,14 @@ class SvnPostCommitTestCase extends SvnHelper {
       if ($op['revision'] == $revision) {
         break;
       }
-      $this->fail(t('Correctly insert a commit to the database.'));
+      $this->fail(t('Correctly insert a commit to the database.'), t('post-commit hook'));
     }
 
     $this->assertEqual(
       $op['username'],
       $this->server_user,
       t('Username in database matches committer username'),
-      t('post-command hook')
+      t('post-commit hook')
     );
 
     $this->assertEqual(
@@ -164,7 +196,7 @@ class SvnPostCommitTestCase extends SvnHelper {
       t('post-commit hook')
     );
 
-    // Check the commit log
+    // Check the commit log.
     $this->assertOperationLog($op_id, $op);
   }
 }
