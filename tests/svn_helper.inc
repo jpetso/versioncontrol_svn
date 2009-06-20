@@ -145,4 +145,34 @@ class SvnHelper extends DrupalWebTestCase {
     parent::tearDown();
   }
 
+  /**
+   * Check out a working copy of the repository.
+   *
+   * This should be verified to work in a test.
+   */
+  function WcCheckOut() {
+    chdir($this->file_path);
+    return shell_exec("svn checkout $this->repo_url $this->wc_path");
+  }
+
+  /**
+   * Adds a sample file to the working copy.
+   *
+   * Does not perform any checks for consistency.
+   */
+  function WcAddSampleFile($path='source.txt', $contents='file contents') {
+    chdir($this->wc_path);
+    $file = fopen($path, 'w');
+    fwrite($file, $contents);
+    fclose($file);
+
+    return shell_exec("svn add $path");
+  }
+
+  /**
+   * Run 'svn commit' with the message given.
+   */
+  function WcCommit($msg = 'commit message') {
+    return shell_exec("svn commit -m '$msg' 2>&1");
+  }
 }

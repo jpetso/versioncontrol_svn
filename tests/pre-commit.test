@@ -30,26 +30,18 @@ class SvnPreCommitTestCase extends SvnHelper {
    */
   function testDenyUnauthorized() {
     // Check out the repository.
-    chdir($this->file_path);
-    $result = shell_exec("svn checkout $this->repo_url $this->wc_path");
+    $result = $this->WcCheckOut();
     $this->assertEqual($result, "Checked out revision 0.\n",
       "Check out the initial svn version.", "Shell Interaction");
 
     // Add a file to the working copy.
-    $test_file =  'source.txt';
-    $contents = 'file contents';
-    $msg = 'commit message';
-    chdir($this->wc_path);
-    $file = fopen($test_file, 'w');
-    fwrite($file, $contents);
-    fclose($file);
-
-    $result = shell_exec("svn add $test_file");
+    $test_file = 'source.txt';
+    $result = $this->WcAddSampleFile($test_file);
     $this->assertEqual($result, "A         $test_file\n",
       "Add test file to the repository.", "Shell Interaction");
 
     // Attempt to commit, but fail because the system user does not have access.
-    $result = shell_exec("svn commit -m '$msg' 2>&1");
+    $result = $this->WcCommit();
     $this->assertEqual($result,
       "Adding         source.txt\n" .
       "Transmitting file data .svn: Commit failed (details follow):\n" .
@@ -57,5 +49,35 @@ class SvnPreCommitTestCase extends SvnHelper {
       "** ERROR: $this->server_user\n" .
       " does not have commit access to this repository.\n\n\n",
       "Unauthorized user is denied access.", "Shell Interaction");
+  }
+
+  /**
+   * Test committing by an authorized user.
+   */
+  function testAuthorizedCommit () {
+    $user = $this->drupalCreateUser(array('administer version control systems'));
+    $this->drupalLogin($user);
+
+    $menu_path = 'admin/project/versioncontrol-repositories/add-svn';
+    $edit = array();
+    $edit['repo_name'] = 'Test Repo';
+    $edit['root'] = $this->repo_url;
+    $this->drupalPost($menu_path, $edit, t('Save repository'));
+
+    $result = $this->WcCheckOut();
+    $result = $this->WcAddSampleFile();
+
+    $menu_path = 'versioncontrol/register';
+    $edit = array();
+    $edit['account_name'] = $this->server_user;
+    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+
+    // TODO: should be able to commit with only 'use version control systems'
+
+    $result = $this->WcCommit();
+
+    $this->assertEqual(preg_match('/Committed revision [0-9]+\./', $result), 1,
+      "Successfully committed after authorization.",
+      "pre-commit hook");
   }
 }
