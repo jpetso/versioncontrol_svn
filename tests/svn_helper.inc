@@ -57,6 +57,44 @@ class SvnHelper extends DrupalWebTestCase {
   protected $config_ext;
 
   /**
+   * Array of subversion hook names and their absolute paths, of the form:
+   *
+   *   array(
+   *     'name' => 'path',
+   *   );
+   */
+  protected $hooks = array();
+
+  /**
+   * Array of destination xsvn files, such as xsvn-config.php and
+   * xsvn-pre-commit.php. Keys are the name of the file, and value is the
+   * absolute path, such as:
+   *
+   *   array(
+   *     'pre-commit' => '/path/to/xsvn-pre-commit.php',
+   *   );
+   */
+  protected $xsvn_files = array();
+
+  /**
+   * Array of source xsvn files, such as xsvn-config.php and
+   * xsvn-pre-commit.php. Keys are the name of the file, and value is the
+   * absolute path, such as:
+   *
+   *   array(
+   *     'pre-commit' => '/path/to/src/xsvn-pre-commit.php',
+   *   );
+   */
+  protected $xsvn_src = array();
+
+
+  /**
+   * An array of the texts of the svn hooks. Each SVN hook is a shell script
+   * which calls the xsvn-*.php hook with the appropriate arguments.
+   */
+  protected $hook_text = array();
+
+  /**
    * Full path to the pre-commit hook in the Subversion "hooks" directory.
    */
   protected $pre_commit_hook;
@@ -112,38 +150,36 @@ class SvnHelper extends DrupalWebTestCase {
 
     $this->config_ext          = "\$xsvn['drupal_path'] = '". $this->base_path ."';\n";
     $this->config_ext         .= "\$GLOBALS['simpletest_db_prefix'] = '". $GLOBALS['db_prefix'] ."';";
-    $this->pre_commit_hook     = $this->repo_path .'/hooks/pre-commit';
-
+    $this->hooks['pre-commit'] = $this->repo_path .'/hooks/pre-commit';
     $module_source             = realpath(drupal_get_path('module', 'versioncontrol_svn'));
-    $this->pre_commit_file_src = $module_source .'/xsvn/xsvn-pre-commit.php';
-    $this->xsvn_config_src     = $module_source .'/xsvn/xsvn-config.php';
+    $this->xsvn_src['pre-commit'] = $module_source .'/xsvn/xsvn-pre-commit.php';
+    $this->xsvn_files['config'] = $module_source .'/xsvn/xsvn-config.php';
+    $this->xsvn_files['dir']            = $this->repo_path .'/hooks/xsvn';
+    $this->xsvn_files['pre-commit'] = $this->xsvn_files['dir'] .'/xsvn-pre-commit.php';
+    $this->xsvn_files['config'] = $this->xsvn_files['dir'] .'/xsvn-config.php';
 
-    $this->xsvn_dir            = $this->repo_path .'/hooks/xsvn';
-    $this->pre_commit_file_dst = $this->xsvn_dir .'/xsvn-pre-commit.php';
-    $this->xsvn_config_dst     = $this->xsvn_dir .'/xsvn-config.php';
-
-    $this->pre_commit_text     = "#!/bin/sh\n".
-      "php $this->pre_commit_file_dst $this->xsvn_config_dst ".
-      '$@';
+    $this->hook_text['pre-commit']     = "#!/bin/sh\n".
+      "php ". $this->xsvn_files['pre-commit'] . $this->xsvn_files['config'] .
+      ' $@';
 
     // Create subversion repository
     shell_exec("svnadmin create $this->repo_path");
 
     // Write the pre-commit hook
-    $file = fopen($this->pre_commit_hook, 'w');
-    fwrite($file, $this->pre_commit_text);
+    $file = fopen($this->hooks['pre-commit'], 'w');
+    fwrite($file, $this->hook_text['pre-commit']);
     fclose($file);
-    chmod($this->pre_commit_hook, 0755);
+    chmod($this->hooks['pre-commit'], 0755);
 
-    mkdir($this->xsvn_dir);
+    mkdir($this->xsvn_files['dir']);
     mkdir($this->wc_path);
 
     // Copy the xsvn files
-    copy($this->pre_commit_file_src, $this->pre_commit_file_dst);
-    copy($this->xsvn_config_src, $this->xsvn_config_dst);
+    copy($this->xsvn_src['pre-commit'], $this->xsvn_files['pre-commit']);
+    copy($this->xsvn_src['config'], $this->xsvn_files['config']);
 
     // Append simpletest-specific info to the config file.
-    $file = fopen($this->xsvn_config_dst, 'a');
+    $file = fopen($this->xsvn_files['config'], 'a');
     fwrite($file, $this->config_ext);
     fclose($file);
   }
