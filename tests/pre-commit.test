@@ -29,9 +29,11 @@ class SvnPreCommitTestCase extends SvnHelper {
    * Test printing of help message when incorrect number arguments is given.
    */
   function testInvalidArgHelp() {
-    $result = shell_exec($this->pre_commit_hook .' 2>&1');
+    $this->initRepo();
+    $this->initHook('pre-commit');
+    $result = shell_exec($this->hooks['pre-commit'] .' 2>&1');
     $usage_text = t('Usage: php !cli <config file> REPO_PATH TX_NAME',
-                  array('!cli' => $this->pre_commit_file_dst));
+                  array('!cli' => $this->xsvn_files['pre-commit']));
 
     $this->assertTrue(
       is_int(strpos($result, $usage_text)),
@@ -46,6 +48,8 @@ class SvnPreCommitTestCase extends SvnHelper {
    * May be overly dependent on the exact strings returned by Subversion.
    */
   function testDenyUnauthorized() {
+    $this->initRepo();
+    $this->initHook('pre-commit');
     $result = $this->wcCheckOut();
     $this->assertTrue(
       is_int(strpos($result, "Checked out revision 0.\n")),
@@ -81,11 +85,8 @@ class SvnPreCommitTestCase extends SvnHelper {
     $user = $this->drupalCreateUser(array('administer version control systems'));
     $this->drupalLogin($user);
 
-    $menu_path = 'admin/project/versioncontrol-repositories/add-svn';
-    $edit = array();
-    $edit['repo_name'] = $this->randomName();
-    $edit['root'] = $this->repo_url;
-    $this->drupalPost($menu_path, $edit, t('Save repository'));
+    $this->repo['name'] = $this->randomName();
+    $this->initDrupalRepo();
 
     $result = $this->wcCommit();
     $error_msg = t('** ERROR: !user does not have commit access to this repository.',
@@ -102,29 +103,21 @@ class SvnPreCommitTestCase extends SvnHelper {
    * Test committing by an authorized user.
    */
   function testAuthorizedCommit() {
+    $this->initRepo();
+    $this->initHook('pre-commit');
+
     $user = $this->drupalCreateUser(array('administer version control systems'));
     $this->drupalLogin($user);
 
-    $menu_path = 'admin/project/versioncontrol-repositories/add-svn';
-    $edit = array();
-    $edit['repo_name'] = $this->randomName();
-    $edit['root'] = $this->repo_url;
-    $this->drupalPost($menu_path, $edit, t('Save repository'));
+    $this->repo['name'] = $this->randomName();
+    $repo = $this->initDrupalRepo();
 
     $result = $this->wcCheckOut();
     $path = $this->randomName();
     $content = $this->randomName();
     $result = $this->wcAddSampleFile($path, $content);
 
-    $repo = array_shift(versioncontrol_get_repositories(array(
-                   'names' => array($edit['repo_name']))));
-    $repo_id = $repo['repo_id'];
-
-    $menu_path = "versioncontrol/register/$user->uid/$repo_id";
-    $edit = array();
-    $edit['account_name'] = $this->server_user;
-
-    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+    $this->initSvnAccount($user->uid, $this->server_user);
 
     // TODO: should be able to commit with only 'use version control systems'
     $message = $this->randomName();

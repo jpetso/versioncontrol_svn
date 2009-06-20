@@ -1,0 +1,170 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Test the Subversion post-commit hook integration.
+ *
+ * The post-commit hook records commits into the database once an operation has
+ * finished.
+ */
+
+require_once(drupal_get_path('module', 'versioncontrol_svn') .'/tests/svn_helper.inc');
+
+class SvnPostCommitTestCase extends SvnHelper {
+
+  /**
+   * Implementation of getInfo().
+   */
+  public static function getInfo() {
+    return array(
+      'name' => t('versioncontrol_svn post-commit hook'),
+      'description' => t('Test the functionality of the SVN post-commit hook'),
+      'group' => t('Version Control'),
+    );
+  }
+
+  /**
+   * Load the commitlog module.
+   */
+  public function setUp() {
+    parent::setUp('commitlog');
+  }
+
+  /**
+   * Test the printing of usage information when incorrect number of arguments
+   * is given.
+   */
+  function testInvalidArgHelp() {
+    $this->initRepo();
+    $this->initHook('post-commit');
+
+    $result = shell_exec($this->hooks['post-commit'] .' 2>&1');
+    $usage_text = t('Usage: php !cli <config file> REPO_PATH REV_NUM',
+                  array('!cli' => $this->xsvn_files['post-commit']));
+
+    $this->assertTrue(
+      is_int(strpos($result, $usage_text)),
+      t('Print help text when incorrect number of arguments is given.'),
+      t('Shell Interaction')
+    );
+  }
+
+  /**
+   * Test committing to a repository when the svn username of the committer does
+   * not match any account in the database.
+   */
+  function testNoUserAccount() {
+    $this->initRepo();
+    $this->initHook('post-commit');
+
+    // To get VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT.
+    require_once $this->xsvn_files['config'];
+    $this->wcCheckout();
+
+    $path = $this->randomName();
+    $contents = $this->randomName();
+    $message = $this->randomName();
+    $name = $this->randomName();
+
+    $this->wcAddSampleFile($path, $contents);
+
+    $user = $this->drupalCreateUser(array('administer version control systems'));
+    $this->drupalLogin($user);
+    $this->initDrupalRepo();
+
+    $result = $this->wcCommit($message);
+
+    $error_pattern = '/Warning: post-commit hook failed \\(exit code (\d+)\\) with output:/';
+    assertTrue(
+      preg_match($error_pattern, $result, $matches),
+      'post-commit hook fails when no user account exists with the repository.',
+      'post-commit hook'
+    );
+
+    $error_code = intval($matches[1]);
+    $this->assertEqual(
+      $error_code,
+      VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT,
+      'Exit with error code when user does not have an account.',
+      'post-commit hook'
+    );
+  }
+
+  /**
+   * Test successfully updating the repository from the post-commit hook.
+   */
+  function testSuccessfulLog() {
+    $this->initRepo();
+    $this->initHook('post-commit');
+
+    $path = $this->randomName();
+    $contents = $this->randomName();
+    $message = $this->randomName();
+    $user = $this->drupalCreateUser(array('administer version control systems'));
+    $this->drupalLogin($user);
+
+    $this->initDrupalRepo();
+
+    $menu_path = "versioncontrol/register/$user->uid/". $this->repo['id'];
+    $edit = array();
+    $edit['account_name'] = $this->server_user;
+    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+
+    $this->wcCheckout();
+    $this->wcAddSampleFile($path, $contents);
+    $result = $this->wcCommit($message);
+
+    // Did not receive an error.
+    $error_pattern = '/Warning: post-commit hook failed \\(exit code (\d+)\\) with output:/';
+    $this->assertFalse(
+      preg_match($error_pattern, $result, $matches),
+      t('post-commit hook succeeds when a user account exists with the repository.'),
+      t('post-commit hook')
+    );
+
+    // Get the revision we just committed (will be 1).
+    $revision_pattern = '/Committed revision (\d+)./';
+    $this->assertTrue(
+      preg_match($revision_pattern, $result, $matches),
+      t('Commit output contains a revision number.'),
+      t('post-commit hook')
+    );
+    $revision = $matches[1];
+
+    $constraints = array('repo_ids' => array($this->repo['id']));
+    $ops = versioncontrol_get_commit_operations($constraints);
+
+    // Find the revision with id $revision, as returned by the commit output.
+    foreach ($ops as $op_id => $op) {
+      if ($op['revision'] == $revision) {
+        break;
+      }
+      $this->fail(t('Correctly insert a commit to the database.'));
+    }
+
+    $this->assertEqual(
+      $op['username'],
+      $this->server_user,
+      t('Username in database matches committer username'),
+      t('post-command hook')
+    );
+
+    $this->assertEqual(
+      $op['uid'],
+      $user->uid,
+      t('Drupal uid correctly recorded for commit.'),
+      t('post-commit hook')
+    );
+
+    $this->assertEqual(
+      $op['message'],
+      $message,
+      t('Commit message matches input message.'),
+      t('post-commit hook')
+    );
+
+    // Check the commit log
+    $this->assertOperationLog($op_id);
+  }
+}

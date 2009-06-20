@@ -19,21 +19,6 @@ class SvnHelper extends DrupalWebTestCase {
   protected $file_path;
 
   /**
-   * Full path to the temporary SVN repository.
-   */
-  protected $repo_path;
-
-  /**
-   * URL of the temporary SVN repository.
-   */
-  protected $repo_url;
-
-  /**
-   * Full path of the temporary SVN working copy.
-   */
-  protected $wc_path;
-
-  /**
    * The old working directory, before chdir().
    */
   protected $old_wd;
@@ -49,12 +34,9 @@ class SvnHelper extends DrupalWebTestCase {
   protected $server_user;
 
   /**
-   * The configuration extension to apply to the copied xsvn-config.php file.
-   *
-   * The config files must be customized for each site, so an addition to the
-   * copied file is needed.
+   * Array containing information about the repository and working copy.
    */
-  protected $config_ext;
+  protected $repo = array();
 
   /**
    * Array of subversion hook names and their absolute paths, of the form:
@@ -95,93 +77,34 @@ class SvnHelper extends DrupalWebTestCase {
   protected $hook_text = array();
 
   /**
-   * Full path to the pre-commit hook in the Subversion "hooks" directory.
-   */
-  protected $pre_commit_hook;
-
-  /**
-   * Full path to the source xsvn-pre-commit.php hook.
-   */
-  protected $pre_commit_file_src;
-
-  /**
-   * Full path to the source xsvn-config.php file.
-   */
-  protected $xsvn_config_src;
-
-  /**
-   * Full path to the "xsvn" directory in the temporary Subversion repository.
-   */
-  protected $xsvn_dir;
-
-  /**
-   * Destination of the xsvn-pre-commit.php file.
-   */
-  protected $pre_commit_file_dst;
-
-  /**
-   * Destination of the xsvn-config.php file.
-   */
-  protected $xsvn_config_dst;
-
-  /**
-   * The text of the pre-commit hook file.
-   *
-   * This is for the pre-commit hook to call the php file, which then does the
-   * heavy lifting.
-   */
-  protected $pre_commit_text;
-
-  /**
    * Help set up a test to use Subversion.
    */
   function setUp() {
     parent::setUp('versioncontrol', 'versioncontrol_svn');
 
-    $this->old_wd              = getcwd();
-    $this->file_path           = realpath(file_directory_path());
-    $this->repo_path           = $this->file_path .'/svnrepo';
-    $this->repo_url            = 'file://'. $this->file_path .'/svnrepo';
-    $this->wc_path             = $this->file_path .'/svnwc';
-    $this->base_path           = dirname($_SERVER['SCRIPT_FILENAME']);
+    $this->old_wd                        = getcwd();
+    $this->file_path                     = realpath(file_directory_path());
+    $this->repo['path']                  = $this->file_path .'/svnrepo';
+    $this->repo['url']                   = 'file://'. $this->file_path .'/svnrepo';
+    $this->repo['wc_path']               = $this->file_path .'/svnwc';
+    $this->base_path                     = dirname($_SERVER['SCRIPT_FILENAME']);
 
     // TODO: Make this more portable
-    $this->server_user         = $_ENV['APACHE_RUN_USER'];
+    $this->server_user                   = $_ENV['APACHE_RUN_USER'];
 
-    $this->config_ext          = "\$xsvn['drupal_path'] = '". $this->base_path ."';\n";
-    $this->config_ext         .= "\$GLOBALS['simpletest_db_prefix'] = '". $GLOBALS['db_prefix'] ."';";
-    $this->hooks['pre-commit'] = $this->repo_path .'/hooks/pre-commit';
-    $module_source             = realpath(drupal_get_path('module', 'versioncontrol_svn'));
-    $this->xsvn_src['pre-commit'] = $module_source .'/xsvn/xsvn-pre-commit.php';
-    $this->xsvn_files['config'] = $module_source .'/xsvn/xsvn-config.php';
-    $this->xsvn_files['dir']            = $this->repo_path .'/hooks/xsvn';
-    $this->xsvn_files['pre-commit'] = $this->xsvn_files['dir'] .'/xsvn-pre-commit.php';
-    $this->xsvn_files['config'] = $this->xsvn_files['dir'] .'/xsvn-config.php';
+    $this->hook_text['config']           = "\$xsvn['drupal_path'] = '". $this->base_path ."';\n";
+    $this->hook_text['config']          .= "\$GLOBALS['simpletest_db_prefix'] = '". $GLOBALS['db_prefix'] ."';";
+    $this->hooks['pre-commit']           = $this->repo['path'] .'/hooks/pre-commit';
+    $module_source                       = realpath(drupal_get_path('module', 'versioncontrol_svn'));
+    $this->xsvn_src['pre-commit']        = $module_source .'/xsvn/xsvn-pre-commit.php';
+    $this->xsvn_files['config']          = $module_source .'/xsvn/xsvn-config.php';
+    $this->xsvn_files['dir']             = $this->repo['path'] .'/hooks/xsvn';
+    $this->xsvn_files['pre-commit']      = $this->xsvn_files['dir'] .'/xsvn-pre-commit.php';
+    $this->xsvn_files['config']          = $this->xsvn_files['dir'] .'/xsvn-config.php';
 
-    $this->hook_text['pre-commit']     = "#!/bin/sh\n".
+    $this->hook_text['pre-commit']       = "#!/bin/sh\n".
       "php ". $this->xsvn_files['pre-commit'] . $this->xsvn_files['config'] .
       ' $@';
-
-    // Create subversion repository
-    shell_exec("svnadmin create $this->repo_path");
-
-    // Write the pre-commit hook
-    $file = fopen($this->hooks['pre-commit'], 'w');
-    fwrite($file, $this->hook_text['pre-commit']);
-    fclose($file);
-    chmod($this->hooks['pre-commit'], 0755);
-
-    mkdir($this->xsvn_files['dir']);
-    mkdir($this->wc_path);
-
-    // Copy the xsvn files
-    copy($this->xsvn_src['pre-commit'], $this->xsvn_files['pre-commit']);
-    copy($this->xsvn_src['config'], $this->xsvn_files['config']);
-
-    // Append simpletest-specific info to the config file.
-    $file = fopen($this->xsvn_files['config'], 'a');
-    fwrite($file, $this->config_ext);
-    fclose($file);
   }
 
   /**
@@ -193,13 +116,95 @@ class SvnHelper extends DrupalWebTestCase {
   }
 
   /**
+   * Create the subversion repository.
+   */
+  function initRepo() {
+    mkdir($this->xsvn_files['dir']);
+    mkdir($this->repo['wc_path']);
+
+    shell_exec("svnadmin create $this->repo['path']");
+
+    copy($this->xsvn_src['config'], $this->xsvn_files['config']);
+
+    // Append simpletest-specific info to the config file.
+    $file = fopen($this->xsvn_files['config'], 'a');
+    fwrite($file, $this->config_ext);
+    fclose($file);
+    $this->repo['created'] = TRUE;
+    return;
+  }
+
+  /**
+   * Copy the named hook to the repository directory. Throws an exception if the
+   * repository is not already initialized.
+   *
+   * @param $hook
+   *   The name of the hook to initialize.
+   *
+   * @return
+   *   Null.
+   */
+  function initHook($hook) {
+    if (!$this->repop['created']) {
+      throw new Exception(t('Repository has not yet been created.'));
+    }
+
+    // Copy the xsvn files
+    copy($this->xsvn_src['pre-commit'], $this->xsvn_files['pre-commit']);
+
+    $file = fopen($this->hooks[$hook], 'w');
+    fwrite($file, $this->hook_text[$hook]);
+    fclose($file);
+    chmod($this->hooks[$hook], 0755);
+
+    return;
+  }
+
+  /**
+   * Initialize the repository in the Drupal database.
+   *
+   * @param $name
+   *   The title to give the repository.
+   *
+   * @return
+   *   The repository object.
+   */
+  function initDrupalRepo() {
+    $menu_path = 'admin/project/versioncontrol-repositories/add-svn';
+    $this->repo['name'] = $this->randomName();
+
+    $edit = array();
+    $edit['repo_name'] = $name;
+    $edit['root'] = $this->repo['url'];
+    $edit['update_method'] = VERSIONCONTROL_SVN_UPDATE_XSVN;
+    $this->drupalPost($menu_path, $edit, t('Save repository'));
+    $repo = array_shift(versioncontrol_get_repositories(array(
+                'names' => array($edit['repo_name'])
+              )));
+    $this->repo['id'] = $repo['repo_id'];
+
+    return $repo;
+  }
+
+  /**
+   * Create an SVN account for the user with the given uid.
+   */
+  function initSvnAccount($uid, $username) {
+    $menu_path = 'versioncontrol/register/'. $uid . '/'. $this->repo['id'];
+    $edit = array();
+    $edit['account_name'] = $username;
+
+    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+  }
+
+  /**
    * Check out a working copy of the repository.
    *
    * This should be verified to work in a test.
    */
   function wcCheckOut() {
     chdir($this->file_path);
-    return shell_exec("svn checkout $this->repo_url $this->wc_path");
+    return shell_exec("svn checkout $this->repo['url'] $this->repo['wc_path']");
   }
 
   /**
@@ -208,7 +213,7 @@ class SvnHelper extends DrupalWebTestCase {
    * Does not perform any checks for consistency.
    */
   function wcAddSampleFile($path='source.txt', $contents='file contents') {
-    chdir($this->wc_path);
+    chdir($this->repo['wc_path']);
     $file = fopen($path, 'w');
     fwrite($file, $contents);
     fclose($file);
@@ -221,5 +226,28 @@ class SvnHelper extends DrupalWebTestCase {
    */
   function wcCommit($msg = 'commit message') {
     return shell_exec("svn commit -m '$msg' 2>&1");
+  }
+
+  /**
+   * Make sure the given operation appears in the commit log on the current
+   * page.
+   *
+   * @param $operation
+   *   The operation for which to check.
+   */
+  function assertOperationLog($op_id, $operation) {
+    $this->drupalGet('commitlog?id='. $op_id);
+    $this->assertNoText(
+      t('No log messages found.'),
+      t('Make sure a log message is found.'),
+      t('operation log')
+    );
+    $desc = array_shift($this->elements->xpath("//div[class='description']/pre"));
+    $this->assertEqual(
+      $desc,
+      $operation['message'],
+      t('Make sure page message matches operation message.'),
+      t('operation log')
+    );
   }
 }
