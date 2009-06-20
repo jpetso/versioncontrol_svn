@@ -70,12 +70,6 @@ function xsvn_init($argc, $argv) {
   }
 
   $operation = versioncontrol_insert_operation($operation, $operation_items);
-
-  if (!empty($operation)) {
-    fwrite(STDERR, t('Recorded as commit !id.', array(
-      '!id' => versioncontrol_format_operation_revision_identifier($operation),
-    )) ."\n");
-  }
 }
 
 xsvn_init($argc, $argv);
