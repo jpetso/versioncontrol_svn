@@ -36,7 +36,7 @@ function versioncontrol_svn_schema() {
       ),
       'updated' => array(
         'description' =>
-          'Date/time when the repository was last updated, as Unix timestamp. Unlike the CVS backend, the SVN backend uses this property only for displaying purposes, so it is not required for log parsing. 0 if the repository has never been updated at all.',
+          'Date/time when the repository was last updated, as Unix timestamp. Unlike the SVN backend, the SVN backend uses this property only for displaying purposes, so it is not required for log parsing. 0 if the repository has never been updated at all.',
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
@@ -131,7 +131,7 @@ function versioncontrol_svn_uninstall() {
 
 
 // Update functions. To be named versioncontrol_svn_update_xyzz(), where x is
-// the major version of Drupal core, y is the major version of the CVS backend
+// the major version of Drupal core, y is the major version of the SVN backend
 // for this version of Drupal core, and zz is a consecutive number.
 
 // versioncontrol_svn_update_3() was the last update on Drupal 5.x (-2.x).
