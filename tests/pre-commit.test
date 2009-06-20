@@ -8,6 +8,8 @@
  * The pre-commit hook allows restriction of commit access based on whether the
  * user has an account with the particular Subversion repository to which she is
  * trying to commit.
+ *
+ * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
  */
 
 require_once(drupal_get_path('module', 'versioncontrol_svn') .'/tests/svn_helper.inc');

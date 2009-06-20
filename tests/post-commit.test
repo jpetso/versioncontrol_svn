@@ -7,6 +7,8 @@
  *
  * The post-commit hook records commits into the database once an operation has
  * finished.
+ *
+ * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
  */
 
 require_once(drupal_get_path('module', 'versioncontrol_svn') .'/tests/svn_helper.inc');
