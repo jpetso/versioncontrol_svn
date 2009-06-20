@@ -120,11 +120,11 @@ class SvnPreCommitTestCase extends SvnHelper {
                    'names' => array($edit['repo_name']))));
     $repo_id = $repo['repo_id'];
 
+    $menu_path = "versioncontrol/register/$user->uid/$repo_id";
     $edit = array();
     $edit['account_name'] = $this->server_user;
-    // TODO: The form doesn't seem to be working.
-    //$this->drupalPost($menu_path, $edit, t('Create Subversion account'));
-    versioncontrol_insert_account($repo, $user->uid, $this->server_user);
+
+    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
 
     // TODO: should be able to commit with only 'use version control systems'
     $message = $this->randomName();

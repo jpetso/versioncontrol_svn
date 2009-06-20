@@ -299,3 +299,29 @@ function _versioncontrol_svn_update_repository(&$repository) {
   include_once(drupal_get_path('module', 'versioncontrol_svn') .'/versioncontrol_svn.log.inc');
   return _versioncontrol_svn_log_update_repository($repository);
 }
+
+/**
+ * Implementation of [versioncontrol_backend]_is_account_username_valid():
+ * Determine if the given repository allows a username to exist.
+ *
+ * It looks like Subversion can take any characters (any of the ascii printable
+ * characters, at least) as a username; the issue is just safely escaping the
+ * strings.
+ *
+ * At the very least [a-zA-Z0-9_-]+ should be fine, and would probably take care
+ * of most of the cases worth worrying about. Adding [.@+] would get most email
+ * addresses, and shouldn't be too much to worry about, security-wise.
+ *
+ * @param $repository
+ *   The repository where the the VCS account exists or will be located.
+ * @param $username
+ *   The username to check. It is passed by reference so if the username is
+ *   valid but needs minor adaptions (such as cutting away unneeded parts) then
+ *   it the backend can modify it before returning the result.
+ *
+ * @return
+ *   TRUE if the username is valid, FALSE if not.
+ */
+function versioncontrol_svn_is_account_username_valid($repository, &$username) {
+  return drupal_validate_utf8($username);
+}
