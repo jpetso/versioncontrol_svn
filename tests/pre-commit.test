@@ -21,7 +21,7 @@ class SvnPreCommitTestCase extends SvnHelper {
     return array(
       'name' => t('versioncontrol_svn pre-commit hook'),
       'description' => t('Test the functionality of the SVN pre-commit hook'),
-      'group' => t('Version Control'),
+      'group' => t('Version Control - SVN Integration'),
     );
   }
 
