@@ -5,7 +5,8 @@
  * @file
  * Provides access checking for 'svn commit' commands.
  *
- * Copyright 2009 by Daniel Hackney ('chrono325', http://drupal.org/user/384635)
+ * Copyright 2007, 2008, 2009 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
  */
 
 /**

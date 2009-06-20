@@ -7,6 +7,8 @@
  *
  * Takes care of the setup and teardown of functionality common to all of the
  * repository hooks.
+ *
+ * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
  */
 
 class SvnHelper extends DrupalWebTestCase {

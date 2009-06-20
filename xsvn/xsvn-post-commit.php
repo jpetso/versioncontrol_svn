@@ -5,7 +5,7 @@
  * @file
  * Add SVN commits to the commit-log after a commit is made.
  *
- * Copyright 2009 by Daniel Hackney ('chrono325', http://drupal.org/user/384635)
+ * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
  */
 
 /**

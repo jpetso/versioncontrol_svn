@@ -5,6 +5,8 @@
  * @file
  * Configuration variables and bootstrapping code for all SVN hook scripts.
  *
+ * Copyright 2007, 2008, 2009 by Jakob Petsovits ("jpetso", http://drupal.org/user/56020)
+ * Copyright 2008 by Chad Phillips ("hunmonk", http://drupal.org/user/22079)
  * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
  */
 
@@ -55,8 +57,7 @@ $xsvn['cwd'] = getcwd();
 function xsvn_bootstrap($xsvn) {
   chdir($xsvn['drupal_path']);
 
-  // Bootstrap Drupal so we can use Drupal functions to access the databases,
-  // etc.
+  // Bootstrap Drupal so we can use Drupal functions to access the database, etc.
   if (!file_exists('./includes/bootstrap.inc')) {
     fwrite(STDERR, "Error: failed to load Drupal's bootstrap.inc file.\n");
     exit(1);
