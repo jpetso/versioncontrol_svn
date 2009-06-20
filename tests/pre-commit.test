@@ -31,9 +31,9 @@ class SvnPreCommitTestCase extends SvnHelper {
   function testInvalidArgHelp() {
     $this->initRepo();
     $this->initHook('pre-commit');
-    $result = shell_exec($this->hooks['pre-commit'] .' 2>&1');
+    $result = shell_exec($this->hooks['pre-commit']['svn_file'] .' 2>&1');
     $usage_text = t('Usage: php !cli <config file> REPO_PATH TX_NAME',
-                  array('!cli' => $this->xsvn_files['pre-commit']));
+                  array('!cli' => $this->hooks['pre-commit']['dst']));
 
     $this->assertTrue(
       is_int(strpos($result, $usage_text)),

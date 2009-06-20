@@ -130,7 +130,7 @@ function xsvn_get_temp_directory($temp_path) {
  */
 function xsvn_get_commit_author($rev_or_tx, $repo, $is_revision=TRUE) {
   $rev_str = $is_revision ? '-r' : '-t';
-  return trim(shell_exec("svnlook author $rev_str $tx $repo"));
+  return trim(shell_exec("svnlook author $rev_str $rev_or_tx $repo"));
 }
 
 /**

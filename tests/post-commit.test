@@ -39,9 +39,9 @@ class SvnPostCommitTestCase extends SvnHelper {
     $this->initRepo();
     $this->initHook('post-commit');
 
-    $result = shell_exec($this->hooks['post-commit'] .' 2>&1');
+    $result = shell_exec($this->hooks['post-commit']['svn_file'] .' 2>&1');
     $usage_text = t('Usage: php !cli <config file> REPO_PATH REV_NUM',
-                  array('!cli' => $this->xsvn_files['post-commit']));
+                  array('!cli' => $this->hooks['post-commit']['dst']));
 
     $this->assertTrue(
       is_int(strpos($result, $usage_text)),
@@ -59,7 +59,7 @@ class SvnPostCommitTestCase extends SvnHelper {
     $this->initHook('post-commit');
 
     // To get VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT.
-    require_once $this->xsvn_files['config'];
+    require_once $this->hooks['config']['src'];
     $this->wcCheckout();
 
     $path = $this->randomName();
@@ -76,7 +76,7 @@ class SvnPostCommitTestCase extends SvnHelper {
     $result = $this->wcCommit($message);
 
     $error_pattern = '/Warning: post-commit hook failed \\(exit code (\d+)\\) with output:/';
-    assertTrue(
+    $this->assertTrue(
       preg_match($error_pattern, $result, $matches),
       'post-commit hook fails when no user account exists with the repository.',
       'post-commit hook'
@@ -165,6 +165,6 @@ class SvnPostCommitTestCase extends SvnHelper {
     );
 
     // Check the commit log
-    $this->assertOperationLog($op_id);
+    $this->assertOperationLog($op_id, $op);
   }
 }
