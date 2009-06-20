@@ -82,7 +82,7 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
       $operation['username'] = '(no author)';
       $operation['uid'] = 0;
     }
-    
+
     $operation_items = array();
     foreach ($revision['paths'] as $path => $rev_action) {
       $item = array(
@@ -110,10 +110,10 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     }
 
     // Now that was easy, wasn't it? :P
-//    $operation = versioncontrol_insert_operation($operation, $operation_items);
-//    if (isset($operation) && $revision['rev'] > $last_revision) {
-//      $last_revision = $revision['rev'];
-//    }
+    $operation = versioncontrol_insert_operation($operation, $operation_items);
+    if (isset($operation) && $revision['rev'] > $last_revision) {
+      $last_revision = $revision['rev'];
+    }
   }
 
   if ($last_revision > $repository['svn_specific']['last_revision']) {
@@ -121,10 +121,10 @@ function _versioncontrol_svn_log_update_repository(&$repository) {
     $repository['svn_specific']['updated'] = time();
 
     // Everything's done, remember the last revision that was captured.
-//    db_query('UPDATE {versioncontrol_svn_repositories}
-//              SET last_revision = %d, updated = %d WHERE repo_id = %d',
-//              $repository['svn_specific']['last_revision'],
-//              $repository['svn_specific']['updated'], $repository['repo_id']);
+    db_query('UPDATE {versioncontrol_svn_repositories}
+              SET last_revision = %d, updated = %d WHERE repo_id = %d',
+              $repository['svn_specific']['last_revision'],
+              $repository['svn_specific']['updated'], $repository['repo_id']);
   }
   return t('Fetched !count new log entries.', array('!count' => count($revisions)));
 }
