@@ -82,42 +82,38 @@ class SvnPostCommitTestCase extends SvnHelper {
       t('Shell Interaction')
     );
 
-    $ops = versioncontrol_get_commit_operations(
-      array(
-             'vcs' => array('svn'),
-             'repo_ids' => array($this->repo['id']),
-      ));
+    $operations = versioncontrol_get_commit_operations(array(
+      'vcs' => array('svn'),
+      'repo_ids' => array($this->repo['id']),
+    ));
     $this->assertEqual(
-      count($ops),
+      count($operations),
       1,
       t('One commit operation exists in the repository.'),
       t('post-commit hook')
     );
 
-    $op = array_shift($ops);
+    $operation = array_shift($operations);
     $this->assertEqual(
-      $op['uid'],
+      $operation['uid'],
       0,
       t('Commit without a user account is attributed to uid 0 (anonymous).'),
       t('post-commit hook')
     );
-
     $this->assertEqual(
-      $op['username'],
+      $operation['username'],
       $this->server_user,
       t('Username was correctly set.'),
       t('post-commit hook')
     );
-
     $this->assertEqual(
-      $op['message'],
+      $operation['message'],
       $message,
       t('Message is set correctly.'),
       t('post-commit hook')
     );
-
     $this->assertEqual(
-      $op['revision'],
+      $operation['revision'],
       $rev,
       t('Revision is set correctly.'),
       t('post-commit hook')
@@ -135,7 +131,9 @@ class SvnPostCommitTestCase extends SvnHelper {
     $path = $this->randomName();
     $contents = $this->randomName();
     $message = $this->randomName();
-    $user = $this->drupalCreateUser(array('administer version control systems', 'access commit messages'));
+    $user = $this->drupalCreateUser(array(
+      'administer version control systems', 'access commit messages',
+    ));
     $this->drupalLogin($user);
 
     $this->initDrupalRepo();
@@ -166,39 +164,38 @@ class SvnPostCommitTestCase extends SvnHelper {
     );
     $revision = $matches[1];
 
-    $constraints = array('repo_ids' => array($this->repo['id']));
-    $ops = versioncontrol_get_commit_operations($constraints);
+    $operations = versioncontrol_get_commit_operations(array(
+      'repo_ids' => array($this->repo['id']),
+    ));
 
     // Find the revision with id $revision, as returned by the commit output.
-    foreach ($ops as $op_id => $op) {
-      if ($op['revision'] == $revision) {
+    foreach ($operations as $vc_op_id => $operation) {
+      if ($operation['revision'] == $revision) {
         break;
       }
       $this->fail(t('Correctly insert a commit to the database.'), t('post-commit hook'));
     }
 
     $this->assertEqual(
-      $op['username'],
+      $operation['username'],
       $this->server_user,
       t('Username in database matches committer username'),
       t('post-commit hook')
     );
-
     $this->assertEqual(
-      $op['uid'],
+      $operation['uid'],
       $user->uid,
       t('Drupal uid correctly recorded for commit.'),
       t('post-commit hook')
     );
-
     $this->assertEqual(
-      $op['message'],
+      $operation['message'],
       $message,
       t('Commit message matches input message.'),
       t('post-commit hook')
     );
 
     // Check the commit log.
-    $this->assertOperationLog($op_id, $op);
+    $this->assertOperationLog($vc_op_id, $operation);
   }
 }

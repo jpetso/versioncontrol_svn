@@ -135,7 +135,6 @@ class SvnHelper extends DrupalWebTestCase {
     fwrite($file, $this->hooks['config']['text']);
     fclose($file);
     $this->repo['created'] = TRUE;
-    return;
   }
 
   /**
@@ -144,9 +143,6 @@ class SvnHelper extends DrupalWebTestCase {
    *
    * @param $hook
    *   The name of the hook to initialize.
-   *
-   * @return
-   *   Null.
    */
   function initHook($hook) {
     if (!$this->repo['created']) {
@@ -160,8 +156,6 @@ class SvnHelper extends DrupalWebTestCase {
     fwrite($file, $this->hooks[$hook]['text']);
     fclose($file);
     chmod($this->hooks[$hook]['svn_file'], 0755);
-
-    return;
   }
 
   /**
@@ -218,7 +212,7 @@ class SvnHelper extends DrupalWebTestCase {
    *
    * Does not perform any checks for consistency.
    */
-  function wcAddSampleFile($path='source.txt', $contents='file contents') {
+  function wcAddSampleFile($path = 'source.txt', $contents = 'file contents') {
     chdir($this->repo['wc_path']);
     $file = fopen($path, 'w');
     fwrite($file, $contents);
@@ -241,21 +235,19 @@ class SvnHelper extends DrupalWebTestCase {
    * @param $operation
    *   The operation for which to check.
    */
-  function assertOperationLog($op_id, $operation) {
-    $options = array('query' => array('id' => $op_id));
+  function assertOperationLog($vc_op_id, $operation) {
+    $options = array('query' => array('id' => $vc_op_id));
     $this->drupalGet('commitlog', $options);
 
     $this->assertResponse(
       200,
       t('User can access commit log.')
     );
-
     $this->assertNoText(
       t('No log messages found.'),
       t('Make sure a log message is found.'),
       t('operation log')
     );
-
     $this->assertText(
       $operation['message'],
       t('Make sure page message matches operation message.'),
@@ -263,9 +255,8 @@ class SvnHelper extends DrupalWebTestCase {
     );
 
     $theme_string = theme('commitlog_operations_page', array(
-              'vc_op_ids' => array($op_id)
-            ));
-
+      'vc_op_ids' => array($vc_op_id),
+    ));
     // For some reason, the closing tag of the outer <div> appears on the same
     // line in $page, but not in the content of the page. It doesn't seem like
     // that should happen. Convert both to XML and then cast them to strings.
