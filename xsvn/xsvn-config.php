@@ -42,13 +42,6 @@ $xsvn['multisite_directory'] = '';
 // Shared code
 // ------------------------------------------------------------
 
-
-/**
- * Attempted a hook operation with a username that did not have an account
- * corresponding to a Drupal user.
- */
-define('VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT', 1);
-
 // Store the current working directory at include time, because it's being
 // changed when Drupal is bootstrapped. Note that even though this file is in
 // the "hooks" subdirectory, getcwd() will still return the path of the
@@ -97,24 +90,6 @@ function xsvn_bootstrap($xsvn) {
 }
 
 /**
- * Returns the path of the temporary directory and checks that it is writable.
- *
- * @param temp_path
- *   Path to the temporary directory.
- *
- * @return
- *   The input directory, stripped of trailing slashes.
- */
-function xsvn_get_temp_directory($temp_path) {
-  $tempdir = preg_replace('/\/+$/', '', $temp_path); // strip trailing slashes
-  if (!(is_dir($tempdir) && is_writeable($tempdir))) {
-    fwrite(STDERR, "Error: failed to access the temporary directory ($tempdir).\n");
-    exit(2);
-  }
-  return $tempdir;
-}
-
-/**
  * Returns the author of the given revision or transaction in the repository.
  *
  * @param $rev_or_tx
@@ -128,7 +103,7 @@ function xsvn_get_temp_directory($temp_path) {
  * @param $repo
  *   The repository in which to look for the author.
  */
-function xsvn_get_commit_author($rev_or_tx, $repo, $is_revision=TRUE) {
+function xsvn_get_commit_author($rev_or_tx, $repo, $is_revision = TRUE) {
   $rev_str = $is_revision ? '-r' : '-t';
   return trim(shell_exec("svnlook author $rev_str $rev_or_tx $repo"));
 }
@@ -148,7 +123,7 @@ function xsvn_get_commit_author($rev_or_tx, $repo, $is_revision=TRUE) {
  *   transaction. The keys are the paths of the file and the value is the status
  *   of the item, as returned by 'svnlook changed'.
  */
-function xsvn_get_commit_files($rev_or_tx, $repo, $is_revision=TRUE) {
+function xsvn_get_commit_files($rev_or_tx, $repo, $is_revision = TRUE) {
   $rev_str = $is_revision ? '-r' : '-t';
   $str = shell_exec("svnlook changed $rev_str $rev_or_tx $repo");
   $lines = preg_split('/\n/', $str, -1, PREG_SPLIT_NO_EMPTY);

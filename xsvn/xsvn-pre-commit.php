@@ -47,14 +47,11 @@ function xsvn_init($argc, $argv) {
     fwrite(STDERR, t('Error: failed to load configuration file.') ."\n");
     exit(4);
   }
-  include_once $config_file;
+  require_once $config_file;
 
   // Third argument is FALSE to indicate a transaction.
   $username    = xsvn_get_commit_author($tx, $repo, FALSE);
   $item_paths  = xsvn_get_commit_files($tx, $repo, FALSE);
-
-  // Check temporary file storage.
-  $tempdir = xsvn_get_temp_directory($xsvn['temp']);
 
     // Admins and other privileged users don't need to go through any checks.
   if (!in_array($username, $xsvn['allowed_users'])) {
@@ -70,6 +67,8 @@ function xsvn_init($argc, $argv) {
     );
 
     // Set the $operation_items array from the item path and status.
+    $operation_items = array();
+
     foreach ($item_paths as $path => $status) {
       $item = xsvn_get_operation_item($path, $status);
       $operation_items[$path] = $item;

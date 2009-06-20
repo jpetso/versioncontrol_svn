@@ -43,18 +43,13 @@ function xsvn_init($argc, $argv) {
     fwrite(STDERR, t('Error: failed to load configuration file.') ."\n");
     exit(4);
   }
-  include_once $config_file;
+  require_once $config_file;
   xsvn_bootstrap($xsvn);
 
   $message = shell_exec("svnlook propget -r $rev --revprop $repo svn:log");
 
   $username    = xsvn_get_commit_author($rev, $repo);
   $item_paths  = xsvn_get_commit_files($rev, $repo);
-
-  // Check temporary file storage.
-  $tempdir = xsvn_get_temp_directory($xsvn['temp']);
-
-  $operation_items = array();
 
   $operation = array(
     'type' => VERSIONCONTROL_OPERATION_COMMIT,
@@ -67,6 +62,8 @@ function xsvn_init($argc, $argv) {
   );
 
   // Fill the $operation_items array.
+  $operation_items = array();
+
   foreach ($item_paths as $path => $status) {
     $item = xsvn_get_operation_item($path, $status);
     $operation_items[$path] = $item;
@@ -76,8 +73,8 @@ function xsvn_init($argc, $argv) {
 
   if (!empty($operation)) {
     fwrite(STDERR, t('Recorded as commit !id.', array(
-          '!id' => versioncontrol_format_operation_revision_identifier($operation),
-        )) ."\n");
+      '!id' => versioncontrol_format_operation_revision_identifier($operation),
+    )) ."\n");
   }
 }
 
