@@ -80,11 +80,11 @@ class SvnPostCommitTestCase extends SvnHelper {
       t('Shell Interaction')
     );
 
-    $ops = versioncontrol_get_commit_operations(array(
+    $ops = versioncontrol_get_commit_operations(
+      array(
              'vcs' => array('svn'),
              'repo_ids' => array($this->repo['id']),
-
-           ));
+      ));
     $this->assertEqual(
       count($ops),
       1,

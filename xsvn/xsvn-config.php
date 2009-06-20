@@ -210,21 +210,3 @@ function xsvn_get_operation_item($path, $status) {
   }
   return $item;
 }
-
-// TODO: what do I do?
-function xsvn_log_add($filename, $dir, $mode = 'w') {
-  $fd = fopen($filename, $mode);
-  fwrite($fd, $dir);
-  fclose($fd);
-}
-
-// TODO: Explain this more.
-function xsvn_is_last_directory($logfile, $dir) {
-  if (file_exists($logfile)) {
-    $fd = fopen($logfile, 'r');
-    $last = fgets($fd);
-    fclose($fd);
-    return $dir == $last ? TRUE : FALSE;
-  }
-  return TRUE;
-}

@@ -89,8 +89,10 @@ class SvnPreCommitTestCase extends SvnHelper {
     $this->initDrupalRepo();
 
     $result = $this->wcCommit();
-    $error_msg = t('** ERROR: !user does not have commit access to this repository.',
-                 array('!user' => $this->server_user));
+    $error_msg = t(
+      '** ERROR: !user does not have commit access to this repository.',
+      array('!user' => $this->server_user)
+    );
 
     $this->assertTrue(
       is_int(strpos($result, $error_msg)),

@@ -67,7 +67,7 @@ class SvnHelper extends DrupalWebTestCase {
     $this->old_wd          = getcwd();
     $this->file_path       = realpath(file_directory_path());
     $this->repo['path']    = $this->file_path .'/svnrepo';
-    $this->repo['xsvn']    = $this->repo['path'] . '/hooks/xsvn';
+    $this->repo['xsvn']    = $this->repo['path'] .'/hooks/xsvn';
     $this->repo['url']     = 'file://'. $this->file_path .'/svnrepo';
     $this->repo['wc_path'] = $this->file_path .'/svnwc';
     $this->repo['created'] = FALSE;
@@ -97,7 +97,7 @@ class SvnHelper extends DrupalWebTestCase {
    */
   protected function _fillHook($hook) {
     $this->hooks[$hook] = array(
-      'svn_file' => sprintf('%s/hooks/%s',$this->repo['path'], $hook),
+      'svn_file' => sprintf('%s/hooks/%s', $this->repo['path'], $hook),
       'src'      => sprintf('%s/xsvn/xsvn-%s.php', $this->module_source, $hook),
       'dst'      => sprintf('%s/xsvn-%s.php', $this->repo['xsvn'], $hook),
     );
@@ -194,7 +194,7 @@ class SvnHelper extends DrupalWebTestCase {
    * Create an SVN account for the user with the given uid.
    */
   function initSvnAccount($uid, $username) {
-    $menu_path = 'versioncontrol/register/'. $uid . '/'. $this->repo['id'];
+    $menu_path = 'versioncontrol/register/'. $uid .'/'. $this->repo['id'];
     $edit = array();
     $edit['account_name'] = $username;
 
