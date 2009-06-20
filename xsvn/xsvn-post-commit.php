@@ -66,6 +66,12 @@ function xsvn_init($argc, $argv) {
     'labels' => array(), // TODO: Add support for branches and tags.
   );
 
+  // Fill the $operation_items array.
+  foreach ($item_paths as $path => $status) {
+    $item = xsvn_get_operation_item($path, $status);
+    $operation_items[$path] = $item;
+  }
+
   $operation = versioncontrol_insert_operation($operation, $operation_items);
 
   if (!empty($operation)) {
