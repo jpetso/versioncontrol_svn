@@ -42,6 +42,13 @@ $xsvn['multisite_directory'] = '';
 // Shared code
 // ------------------------------------------------------------
 
+
+/**
+ * Attempted a hook operation with a username that did not have an account
+ * corresponding to a Drupal user.
+ */
+define('VERSIONCONTROL_SVN_ERROR_NO_ACCOUNT', 1);
+
 // Store the current working directory at include time, because it's being
 // changed when Drupal is bootstrapped. Note that even though this file is in
 // the "hooks" subdirectory, getcwd() will still return the path of the
@@ -105,6 +112,53 @@ function xsvn_get_temp_directory($temp_path) {
     exit(2);
   }
   return $tempdir;
+}
+
+/**
+ * Returns the author of the given revision or transaction in the repository.
+ *
+ * @param $rev_or_tx
+ *   The revision number or transaction ID for which to find the author.
+ *
+ * @param $is_revision
+ *   Is the $rev_or_tx argument a revision number or a transaction identifier?
+ *   svnlook needs to know which type of object to look for. True if it is a
+ *   revision, false if it is a transaction identifier. Defaults to revision.
+ *
+ * @param $repo
+ *   The repository in which to look for the author.
+ */
+function xsvn_get_commit_author($rev_or_tx, $repo, $is_revision=TRUE) {
+  $rev_str = $is_revision ? '-r' : '-t';
+  return trim(shell_exec("svnlook author $rev_str $tx $repo"));
+}
+
+/**
+ * Returns the files and directories which were modified by the commit or
+ * transaction with their status.
+ *
+ * @param $rev_or_tx
+ *   The revision number or transaction ID for which to find the modified files.
+ *
+ * @param repo
+ *   The repository.
+ *
+ * @return
+ *   An array of files and directories modified by the commit or
+ *   transaction. The keys are the paths of the file and the value is the status
+ *   of the item, as returned by 'svnlook changed'.
+ */
+function xsvn_get_commit_files($rev_or_tx, $repo, $is_revision=TRUE) {
+  $rev_str = $is_revision ? '-r' : '-t';
+  $str = shell_exec("svnlook changed $rev_str $rev_or_tx $repo");
+  $lines = preg_split('/\n/', $str, -1, PREG_SPLIT_NO_EMPTY);
+
+  // Separate the status from the path names.
+  foreach ($lines as $line) {
+    list($status, $path) = preg_split('/\s+/', $line);
+    $items[$path] = $status;
+  }
+  return $items;
 }
 
 // TODO: what do I do?

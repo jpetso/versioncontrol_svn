@@ -16,46 +16,6 @@ function xsvn_help($cli, $output_stream) {
 }
 
 /**
- * Returns the author of the given transaction in the repository.
- *
- * @param tx
- *   The transaction ID for which to find the author.
- *
- * @param repo
- *   The repository in which to look for the author.
- */
-function xsvn_get_commit_author($tx, $repo) {
-  return trim(shell_exec("svnlook author -t $tx $repo"));
-}
-
-/**
- * Returns the files and directories which were modified by the transaction with
- * their status.
- *
- * @param tx
- *   The transaction ID for which to find the modified files.
- *
- * @param repo
- *   The repository.
- *
- * @return
- *   An array of files and directories modified by the transaction. The keys are
- *   the paths of the file and the value is the status of the item, as returned
- *   by 'svnlook changed'.
- */
-function xsvn_get_commit_files($tx, $repo) {
-  $str = shell_exec("svnlook changed -t $tx $repo");
-  $lines = preg_split('/\n/', $str, -1, PREG_SPLIT_NO_EMPTY);
-
-  // Separate the status from the path names.
-  foreach ($lines as $line) {
-    list($status, $path) = preg_split('/\s+/', $line);
-    $items[$path] = $status;
-  }
-  return $items;
-}
-
-/**
  * Fill an item array suitable for versioncontrol_has_write_access from an
  * item's path and status.
  *
@@ -132,8 +92,6 @@ function xsvn_init($argc, $argv) {
   $config_file = array_shift($argv); // argv[1]
   $repo        = array_shift($argv); // argv[2]
   $tx          = array_shift($argv); // argv[3]
-  $username    = xsvn_get_commit_author($tx, $repo);
-  $item_paths  = xsvn_get_commit_files($tx, $repo);
 
   // Load the configuration file and bootstrap Drupal.
   if (!file_exists($config_file)) {
@@ -141,6 +99,10 @@ function xsvn_init($argc, $argv) {
     exit(4);
   }
   include_once $config_file;
+
+  // Third argument is FALSE to indicate a transaction.
+  $username    = xsvn_get_commit_author($tx, $repo, FALSE);
+  $item_paths  = xsvn_get_commit_files($tx, $repo, FALSE);
 
   // Check temporary file storage.
   $tempdir = xsvn_get_temp_directory($xsvn['temp']);
