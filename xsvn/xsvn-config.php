@@ -24,7 +24,6 @@ $xsvn['temp'] = '/tmp';
 // repository, and notice the final number in the resulting URL.
 $xsvn['repo_id'] = 1;
 
-
 // ------------------------------------------------------------
 // Optional customization
 // ------------------------------------------------------------
@@ -88,7 +87,6 @@ function xsvn_bootstrap($xsvn) {
   if (isset($GLOBALS['simpletest_db_prefix'])) {
     $GLOBALS['db_prefix'] = $GLOBALS['simpletest_db_prefix'];
   }
-
 }
 
 /**

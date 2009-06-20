@@ -2,15 +2,17 @@
 // $Id$
 
 /**
- * @file xsvn-pre-commit.php
- *
+ * @file
  * Provides access checking for 'svn commit' commands.
  *
- * Copyright 2009 by Daniel Hackney ("chrono325", http://drupal.org/user/384635)
+ * Copyright 2009 by Daniel Hackney ('chrono325', http://drupal.org/user/384635)
  */
 
+/**
+ * Prints usage of this program.
+ */
 function xsvn_help($cli, $output_stream) {
-  fwrite($output_stream, "Usage: $cli <config file> REPO_PATH TX_NAME\n\n");
+  fwrite($output_stream, "Usage: php $cli <config file> REPO_PATH TX_NAME\n\n");
 }
 
 /**
@@ -39,15 +41,15 @@ function xsvn_get_commit_author($tx, $repo) {
  * @return
  *   An array of files and directories modified by the transaction. The keys are
  *   the paths of the file and the value is the status of the item, as returned
- *   by "svnlook changed".
+ *   by 'svnlook changed'.
  */
 function xsvn_get_commit_files($tx, $repo) {
   $str = shell_exec("svnlook changed -t $tx $repo");
-  $lines = preg_split("/\n/", $str, -1, PREG_SPLIT_NO_EMPTY);
+  $lines = preg_split('/\n/', $str, -1, PREG_SPLIT_NO_EMPTY);
 
   // Separate the status from the path names.
   foreach ($lines as $line) {
-    list($status, $path) = preg_split("/\s+/", $line);
+    list($status, $path) = preg_split('/\s+/', $line);
     $items[$path] = $status;
   }
   return $items;
@@ -61,45 +63,45 @@ function xsvn_get_commit_files($tx, $repo) {
  *   The path of the item.
  *
  * @param status
- *   The status of the item, as returned from "svnlook changed".
+ *   The status of the item, as returned from 'svnlook changed'.
  */
 function xsvn_get_operation_item($path, $status) {
   $item['path'] = $path;
 
   // The item has been deleted.
-  if (preg_match("@D@", $status)) {
+  if (preg_match('@D@', $status)) {
     // A trailing slash means the item is a directory
-    $item['type'] = (preg_match("@/$@", $path)) ?
+    $item['type'] = (preg_match('@/$@', $path)) ?
       VERSIONCONTROL_ITEM_DIRECTORY_DELETED : VERSIONCONTROL_ITEM_FILE_DELETED;
-  } else {
-    $item['type'] = (preg_match("@/$@", $path)) ?
+  }
+  else {
+    $item['type'] = (preg_match('@/$@', $path)) ?
       VERSIONCONTROL_ITEM_DIRECTORY : VERSIONCONTROL_ITEM_FILE;
   }
 
   switch ($status) {
-    case "A":
+    case 'A':
       $item['action'] = VERSIONCONTROL_ACTION_ADDED;
       break;
-    case "D":
+    case 'D':
       $item['action'] = VERSIONCONTROL_ACTION_DELETED;
       break;
-    case "U":
+    case 'U':
       $item['action'] = VERSIONCONTROL_ACTION_MODIFIED;
       break;
-    case "_U":
+    case '_U':
       // Item properties have changed, but nothing else.
       $item['action'] = VERSIONCONTROL_ACTION_OTHER;
       break;
-    case "UU":
+    case 'UU':
       // Both properties and contents have changed.
       // TODO: Should this count as MODIFIED or OTHER, since it's really both?
       $item['action'] = VERSIONCONTROL_ACTION_MODIFIED;
       break;
     default:
-      fwrite(STDERR, "Error: failed to read the status of the commit.\n");
+      fwrite(STDERR, t('Error: failed to read the status of the commit.') ."\n");
       exit(4);
   }
-
   return $item;
 }
 
@@ -135,7 +137,7 @@ function xsvn_init($argc, $argv) {
 
   // Load the configuration file and bootstrap Drupal.
   if (!file_exists($config_file)) {
-    fwrite(STDERR, "Error: failed to load configuration file.\n");
+    fwrite(STDERR, t('Error: failed to load configuration file.') ."\n");
     exit(4);
   }
   include_once $config_file;

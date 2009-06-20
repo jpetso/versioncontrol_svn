@@ -1,16 +1,27 @@
 <?php
+// $Id$
+
+/**
+ * @file
+ * Test the Subversion pre-commit hook integration.
+ *
+ * The pre-commit hook allows restriction of commit access based on whether the
+ * user has an account with the particular Subversion repository to which she is
+ * trying to commit.
+ */
 
 require_once(drupal_get_path('module', 'versioncontrol_svn') .'/tests/svn_helper.inc');
 
 class SvnPreCommitTestCase extends SvnHelper {
+
   /**
    * Implementation of getInfo().
    */
   public static function getInfo() {
     return array(
       'name' => t('versioncontrol_svn pre-commit hook'),
-      'description' => t('Test the functionality of the SVN hooks'),
-      'group' => t('VersionControl'),
+      'description' => t('Test the functionality of the SVN pre-commit hook'),
+      'group' => t('Version Control'),
     );
   }
 
@@ -18,9 +29,15 @@ class SvnPreCommitTestCase extends SvnHelper {
    * Test printing of help message when incorrect number arguments is given.
    */
   function testInvalidArgHelp() {
-    $result = shell_exec($this->pre_commit_hook . ' 2>&1 1> /dev/null');
-    $this->assertEqual(preg_match("/Usage: .+ <config file> REPO_PATH TX_NAME/", $result), 1,
-      "Print help text when incorrect number of arguments is given.", "Shell Interaction");
+    $result = shell_exec($this->pre_commit_hook .' 2>&1');
+    $usage_text = t('Usage: php !cli <config file> REPO_PATH TX_NAME',
+                  array('!cli' => $this->pre_commit_file_dst));
+
+    $this->assertTrue(
+      is_int(strpos($result, $usage_text)),
+      t('Print help text when incorrect number of arguments is given.'),
+      t('Shell Interaction')
+    );
   }
 
   /**
@@ -29,29 +46,36 @@ class SvnPreCommitTestCase extends SvnHelper {
    * May be overly dependent on the exact strings returned by Subversion.
    */
   function testDenyUnauthorized() {
-    // Check out the repository.
-    $result = $this->WcCheckOut();
-    $this->assertEqual($result, "Checked out revision 0.\n",
-      "Check out the initial svn version.", "Shell Interaction");
+    $result = $this->wcCheckOut();
+    $this->assertTrue(
+      is_int(strpos($result, "Checked out revision 0.\n")),
+      t('Check out the initial svn version.'),
+      t('Shell Interaction')
+    );
 
-    // Add a file to the working copy.
-    $test_file = 'source.txt';
-    $result = $this->WcAddSampleFile($test_file);
-    $this->assertEqual($result, "A         $test_file\n",
-      "Add test file to the repository.", "Shell Interaction");
+    $path = $this->randomName();
+    $contents = $this->randomName();
+    $result = $this->wcAddSampleFile($path, $contents);
+    $this->assertTrue(
+      is_int(strpos($result, "A         $path\n")),
+      t('Add test file to the repository.'),
+      t('Shell Interaction')
+    );
 
     // Attempt to commit, but fail because the system user does not have access.
-    $result = $this->WcCommit();
+    $message = $this->randomName();
+    $result = $this->wcCommit($message);
     $error_msg = t(
       "** ERROR: Version Control API cannot determine a repository\n".
-      "** for the !commit-branch-or-tag information given by the VCS backend.",
+      '** for the !commit-branch-or-tag information given by the VCS backend.',
       array('!commit-branch-or-tag' => t('commit'))
     );
 
-    $this->assertEqual(preg_match('/' . preg_quote($error_msg) . '/', $result),
-      1,
-      "Cannot commit with no existing repository.",
-      "Shell Interaction");
+    $this->assertTrue(
+      is_int(strpos($result, $error_msg)),
+      t('Cannot commit with no existing repository.'),
+      t('Shell Interaction')
+    );
 
     // Add a repository, but don't register an account.
     $user = $this->drupalCreateUser(array('administer version control systems'));
@@ -63,19 +87,21 @@ class SvnPreCommitTestCase extends SvnHelper {
     $edit['root'] = $this->repo_url;
     $this->drupalPost($menu_path, $edit, t('Save repository'));
 
-    $result = $this->WcCommit();
+    $result = $this->wcCommit();
     $error_msg = t('** ERROR: !user does not have commit access to this repository.',
                  array('!user' => $this->server_user));
-      $this->assertEqual(preg_match('/' . preg_quote($error_msg) . '/', $result),
-        1,
-        "Cannot commit to repository without an account on that repository.",
-        "pre-commit hook");
+
+    $this->assertTrue(
+      is_int(strpos($result, $error_msg)),
+      t('Cannot commit to repository without an account on that repository.'),
+      t('pre-commit hook')
+    );
   }
 
   /**
    * Test committing by an authorized user.
    */
-  function testAuthorizedCommit () {
+  function testAuthorizedCommit() {
     $user = $this->drupalCreateUser(array('administer version control systems'));
     $this->drupalLogin($user);
 
@@ -85,29 +111,28 @@ class SvnPreCommitTestCase extends SvnHelper {
     $edit['root'] = $this->repo_url;
     $this->drupalPost($menu_path, $edit, t('Save repository'));
 
-    $result = $this->WcCheckOut();
-    $result = $this->WcAddSampleFile();
+    $result = $this->wcCheckOut();
+    $path = $this->randomName();
+    $content = $this->randomName();
+    $result = $this->wcAddSampleFile($path, $content);
 
     $repo = array_shift(versioncontrol_get_repositories(array(
-                   'names' => array($edit['repo_name'])
-                 )));
+                   'names' => array($edit['repo_name']))));
     $repo_id = $repo['repo_id'];
-
-    $menu_path = "versioncontrol/register/$user->uid/$repo_id";
-    $edit = array();
-    $edit['repo_id'] = $repo_id;
 
     $edit = array();
     $edit['account_name'] = $this->server_user;
-//    $this->drupalPost($menu_path, $edit, t('Create Subversion account'));
+    // TODO: The form doesn't seem to be working.
+    //$this->drupalPost($menu_path, $edit, t('Create Subversion account'));
     versioncontrol_insert_account($repo, $user->uid, $this->server_user);
 
     // TODO: should be able to commit with only 'use version control systems'
-
-    $result = $this->WcCommit();
-    $this->assertEqual(preg_match('/Committed revision [0-9]+\./', $result),
-      1,
-      "Successfully committed after authorization.",
-      "pre-commit hook");
+    $message = $this->randomName();
+    $result = $this->wcCommit($message);
+    $this->assertTrue(
+      preg_match('/Committed revision [0-9]+\./', $result),
+      t('Successfully committed after authorization.'),
+      t('pre-commit hook')
+    );
   }
 }
